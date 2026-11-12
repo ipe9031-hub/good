@@ -26,4 +26,3 @@
 | Phase 5 자동화·문서 변환·선택적 복원 | 개발 예정 | 전체 요구사항 유지 |
 
 Phase 2 상세 사용 범위: [PHASE2.md](PHASE2.md). 전체 기획·제외 기능은 [원문 요구사항](PRODUCT-REQUIREMENTS.ko.txt)을 기준으로 보존합니다.
-
