@@ -10,7 +10,7 @@ if (!tracked.includes("package-lock.json"))
   throw new Error("Stage source and lockfile before packaging.");
 const files = {};
 for (const file of tracked) {
-  if (/^(\.git|node_modules|artifacts|downloads|\.env$)/.test(file)) continue;
+  if (/^(?:\.git(?:\/|$)|node_modules\/|artifacts\/|downloads\/|\.env$)/.test(file)) continue;
   files[`PPT-AI-Studio/${file}`] = new Uint8Array(readFileSync(file));
 }
 function addDir(path) {
