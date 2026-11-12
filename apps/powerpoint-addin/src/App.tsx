@@ -17,7 +17,6 @@ import {
   PanelRight,
   RefreshCw,
   ShieldCheck,
-  Square,
   Trash2,
   X,
 } from "lucide-react";
@@ -209,21 +208,12 @@ export function App() {
               </div>
             </div>
           )}
-          <section className="document-card">
-            <div className="document-icon">
-              <Layers3 size={19} />
-            </div>
-            <div className="document-info">
-              <span>현재 작업 문서</span>
-              <strong>
-                {selection?.documentName || "연결된 프레젠테이션 없음"}
-              </strong>
-              <p>
-                {selection
-                  ? `전체 ${selection.slideCount}장 · 선택 슬라이드 ${selection.slideIds.length}장 · 선택 개체 ${selection.shapes.length}개`
-                  : "문서를 열고 슬라이드를 선택해 주세요"}
-              </p>
-            </div>
+          <div className="selection-bar">
+            <span>
+              {selection
+                ? `${selection.shapes.length}개 선택됨`
+                : "선택 정보 없음"}
+            </span>
             <button
               className="icon-button"
               title="선택 정보 새로고침"
@@ -231,9 +221,9 @@ export function App() {
               disabled={!enabled}
               onClick={() => void refresh()}
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={15} />
             </button>
-          </section>
+          </div>
           <nav className="tabs" aria-label="편집 메뉴">
             {(
               [
@@ -284,68 +274,57 @@ export function App() {
                 </div>
               ) : (
                 <>
-                  <ul className="object-list">
-                    {selection.shapes.map((s) => (
-                      <li key={s.id}>
-                        <Square size={16} />
-                        <div>
-                          <strong>{s.name}</strong>
-                          <small>
-                            {s.type} · {Math.round(s.width)} ×{" "}
-                            {Math.round(s.height)} pt
-                          </small>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
                   {selection.shapes.length === 1 ? (
-                    <>
-                      <BoundsFields
-                        value={editBounds}
-                        onChange={setEditBounds}
-                      />
-                      <button
-                        className="primary full"
-                        disabled={!enabled}
-                        onClick={() =>
-                          stage((s) => {
-                            const target = targetOf(s, true);
-                            const b = validateBounds({ ...editBounds });
-                            return {
-                              title: "위치·크기 변경",
-                              target,
-                              detail:
-                                "선택 개체 1개의 위치와 크기만 변경합니다.",
-                              execute: () => service.update(target, b),
-                              preview: (
-                                <div className="change-preview">
-                                  {Object.entries(b).map(([key, val]) => (
-                                    <p key={key}>
-                                      <span>
-                                        {
+                    <details className="option-box">
+                      <summary>위치·크기 변경</summary>
+                      <div className="option-content">
+                        <BoundsFields
+                          value={editBounds}
+                          onChange={setEditBounds}
+                        />
+                        <button
+                          className="primary full"
+                          disabled={!enabled}
+                          onClick={() =>
+                            stage((s) => {
+                              const target = targetOf(s, true);
+                              const b = validateBounds({ ...editBounds });
+                              return {
+                                title: "위치·크기 변경",
+                                target,
+                                detail:
+                                  "선택 개체 1개의 위치와 크기만 변경합니다.",
+                                execute: () => service.update(target, b),
+                                preview: (
+                                  <div className="change-preview">
+                                    {Object.entries(b).map(([key, val]) => (
+                                      <p key={key}>
+                                        <span>
                                           {
-                                            left: "X",
-                                            top: "Y",
-                                            width: "너비",
-                                            height: "높이",
-                                          }[key]
-                                        }
-                                      </span>
-                                      {Math.round(
-                                        s.shapes[0][key as keyof Bounds],
-                                      )}{" "}
-                                      → <strong>{val} pt</strong>
-                                    </p>
-                                  ))}
-                                </div>
-                              ),
-                            };
-                          })
-                        }
-                      >
-                        변경 적용 <ChevronRight size={16} />
-                      </button>
-                    </>
+                                            {
+                                              left: "X",
+                                              top: "Y",
+                                              width: "너비",
+                                              height: "높이",
+                                            }[key]
+                                          }
+                                        </span>
+                                        {Math.round(
+                                          s.shapes[0][key as keyof Bounds],
+                                        )}{" "}
+                                        → <strong>{val} pt</strong>
+                                      </p>
+                                    ))}
+                                  </div>
+                                ),
+                              };
+                            })
+                          }
+                        >
+                          변경 적용 <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </details>
                   ) : (
                     <p className="field-hint">
                       위치·크기 변경은 개체 한 개씩 지원합니다.
@@ -363,15 +342,7 @@ export function App() {
                           destructive: true,
                           detail: `선택 슬라이드 1장에서 개체 ${target.shapeIds.length}개를 삭제합니다.`,
                           execute: () => service.remove(target),
-                          preview: (
-                            <ul className="delete-list">
-                              {s.shapes.map((shape) => (
-                                <li key={shape.id}>
-                                  {shape.name} · {shape.type}
-                                </li>
-                              ))}
-                            </ul>
-                          ),
+                          preview: null,
                         };
                       })
                     }
@@ -452,7 +423,7 @@ export function App() {
             <span>
               <ShieldCheck size={13} /> 원본 파일을 먼저 저장해 주세요
             </span>
-            <span>v0.2.2</span>
+            <span>v0.2.3</span>
           </footer>
         </main>
       </div>
@@ -485,7 +456,6 @@ export function App() {
             }}
           >
             <div className="modal-top">
-              <span className="eyebrow">REVIEW & APPLY</span>
               <button
                 aria-label="미리보기 닫기"
                 disabled={busy}
@@ -496,9 +466,6 @@ export function App() {
             </div>
             <h3 id="confirm-title">{pending.title}</h3>
             <p>{pending.detail}</p>
-            <div className="target-summary">
-              대상 슬라이드 ID <code>{pending.target.slideId}</code>
-            </div>
             {pending.preview}
             {pending.destructive && (
               <p className="delete-warning">

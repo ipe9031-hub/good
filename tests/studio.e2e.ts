@@ -58,6 +58,7 @@ test("선택 개체 위치 변경과 승인 삭제", async ({ page }) => {
   });
   await page.getByRole("button", { name: "선택 정보 새로고침" }).click();
   await page.getByRole("button", { name: "선택 개체", exact: true }).click();
+  await page.getByText("위치·크기 변경", { exact: true }).click();
   await page.getByRole("spinbutton", { name: "X 위치" }).fill("120");
   await page.getByRole("button", { name: /변경 적용/ }).click();
   await expect(page.getByRole("status")).toContainText("변경 완료");
@@ -149,6 +150,7 @@ test("사진 그리드와 위치 교환, 승인 삭제 후 재배치에서 제�
       () => (window as any).__officeTest.shapes[0].textFrame.textRange.text,
     ),
   ).toBe("보존할 원본 제목");
+  await page.getByText("사진 삭제 후 재배치", { exact: true }).click();
   await page.getByRole("button", { name: "삭제 대상 확인" }).click();
   await expect(page.getByRole("dialog")).toContainText("삭제 1개");
   expect(
@@ -182,6 +184,7 @@ test("전체 텍스트 서식 변경만 확인하고 적용한다", async ({ pag
   await page.getByRole("button", { name: "편집 도구", exact: true }).click();
   await page.getByRole("button", { name: "텍스트·색상", exact: true }).click();
   await page.getByLabel("작업 범위").selectOption("all");
+  await page.getByText("글꼴·크기·색상", { exact: true }).click();
   await page.getByLabel("글자 크기", { exact: true }).fill("30");
   await page.getByRole("button", { name: "텍스트 서식 적용" }).click();
   await expect(page.getByRole("dialog")).toContainText("슬라이드 2장");
@@ -218,15 +221,16 @@ test("유사 개체 검색 결과만 선택하고 삭제 취소 시 보존한다
   await page.getByRole("button", { name: "선택 정보 새로고침" }).click();
   await page.getByRole("button", { name: "편집 도구", exact: true }).click();
   await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByText("검색 옵션", { exact: true }).click();
   await page.getByLabel("같은 개체 유형", { exact: true }).check();
-  await page.getByRole("button", { name: "개체 찾기" }).click();
-  await expect(page.getByRole("status")).toContainText("2개 찾았습니다");
-  await page.getByRole("button", { name: "검색 결과 선택" }).click();
-  await expect(page.getByRole("status")).toContainText("2개 선택 완료");
+  await page.getByRole("button", { name: "찾아서 선택" }).click();
+  await expect(page.getByRole("status")).toContainText("2개 선택됨");
+  await expect(page.getByRole("status")).toContainText("2개 선택됨");
   expect(
     await page.evaluate(() => (window as any).__officeTest.selected.length),
   ).toBe(2);
-  await page.getByRole("button", { name: "검색 결과 삭제" }).click();
+  await page.getByText("찾은 개체 편집", { exact: true }).click();
+  await page.getByRole("button", { name: "찾은 개체 2개 삭제" }).click();
   await page.getByRole("button", { name: "취소", exact: true }).click();
   expect(
     await page.evaluate(() => (window as any).__officeTest.shapes.length),
@@ -266,6 +270,7 @@ test("선택 텍스트 문구 교체와 색상 교체는 즉시 적용한다", a
   await page.getByRole("button", { name: "선택 정보 새로고침" }).click();
   await page.getByRole("button", { name: "편집 도구", exact: true }).click();
   await page.getByRole("button", { name: "텍스트·색상", exact: true }).click();
+  await page.getByText("문구 찾기·바꾸기", { exact: true }).click();
   await page.getByLabel("찾을 문구", { exact: true }).fill("원본");
   await page.getByLabel("바꿀 문구", { exact: true }).fill("새로운");
   await page.getByRole("button", { name: "문구 바꾸기", exact: true }).click();
@@ -276,6 +281,7 @@ test("선택 텍스트 문구 교체와 색상 교체는 즉시 적용한다", a
       () => (window as any).__officeTest.shapes[0].textFrame.textRange.text,
     ),
   ).toBe("보존할 새로운 제목");
+  await page.getByText("색상 일괄 교체", { exact: true }).click();
   await page.getByLabel("기존 색", { exact: true }).fill("#264f9e");
   await page.getByLabel("새 색", { exact: true }).fill("#ff0000");
   await page.getByRole("button", { name: "일치하는 색상 교체" }).click();
@@ -296,6 +302,7 @@ test("기본 서식은 내용과 위치를 유지하며 복제한다", async ({ 
   });
   await page.getByRole("button", { name: "선택 정보 새로고침" }).click();
   await page.getByRole("button", { name: "편집 도구", exact: true }).click();
+  await page.getByText("서식 복제", { exact: true }).click();
   await page.getByRole("button", { name: "서식 복사", exact: true }).click();
   await expect(page.getByRole("status")).toContainText(
     "기본 서식을 복사했습니다",
@@ -360,10 +367,14 @@ test("선택 새로고침 없이 바꾼 개체를 유사 검색 기준으로 사
   });
   // No selection event and no refresh: the visible parent cache still has zero selections.
   await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByText("검색 옵션", { exact: true }).click();
   await page.getByLabel("같은 개체 유형", { exact: true }).check();
-  await page.getByRole("button", { name: "개체 찾기" }).click();
-  await expect(page.getByRole("status")).toContainText("2개 찾았습니다");
-  await expect(page.getByText("기준 개체: Rectangle")).toBeVisible();
+  await page.getByRole("button", { name: "찾아서 선택" }).click();
+  await expect(page.getByRole("status")).toContainText("2개 선택됨");
+  expect(
+    await page.evaluate(() => (window as any).__officeTest.selected.length),
+  ).toBe(2);
+  await expect(page.getByText("기준 개체: Rectangle")).toHaveCount(0);
 });
 test("텍스트를 지원하지 않는 네이티브 도형도 유형 검색된다", async ({
   page,
@@ -391,9 +402,10 @@ test("텍스트를 지원하지 않는 네이티브 도형도 유형 검색된�
     s.selected = [a.id];
   });
   await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByText("검색 옵션", { exact: true }).click();
   await page.getByLabel("같은 개체 유형", { exact: true }).check();
-  await page.getByRole("button", { name: "개체 찾기" }).click();
-  await expect(page.getByRole("status")).toContainText("2개 찾았습니다");
+  await page.getByRole("button", { name: "찾아서 선택" }).click();
+  await expect(page.getByRole("status")).toContainText("2개 선택됨");
 });
 test("선택 없이 도형·사진·텍스트를 함께 찾고 사진만 필터링한다", async ({
   page,
@@ -406,16 +418,13 @@ test("선택 없이 도형·사진·텍스트를 함께 찾고 사진만 필터�
     s.selected = [];
   });
   await page.getByRole("button", { name: "개체 검색", exact: true }).click();
-  await page.getByRole("button", { name: "개체 찾기", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("3개 찾았습니다");
-  await expect(
-    page.getByText("도형 1개 · 사진 1개 · 텍스트 상자 1개"),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "찾아서 선택", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("3개 선택됨");
+  await page.getByText("검색 옵션", { exact: true }).click();
   await page.getByLabel("개체 종류", { exact: true }).selectOption("Image");
-  await page.getByRole("button", { name: "개체 찾기", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1개 찾았습니다");
-  await page.getByRole("button", { name: "검색 결과 선택" }).click();
-  await expect(page.getByRole("status")).toContainText("1개 선택 완료");
+  await page.getByRole("button", { name: "찾아서 선택", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("1개 선택됨");
+  await expect(page.getByRole("status")).toContainText("1개 선택됨");
   expect(
     await page.evaluate(() => {
       const s = (window as any).__officeTest;
@@ -424,9 +433,103 @@ test("선택 없이 도형·사진·텍스트를 함께 찾고 사진만 필터�
   ).toBe("Image");
   await page.getByLabel("개체 종류", { exact: true }).selectOption("all");
   await page.getByLabel("같은/유사한 크기", { exact: true }).check();
-  await page.getByRole("button", { name: "개체 찾기", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("2개 찾았습니다");
+  await page.getByRole("button", { name: "찾아서 선택", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("2개 선택됨");
+  expect(
+    await page.evaluate(() => (window as any).__officeTest.selected.length),
+  ).toBe(2);
+});
+test("검색은 한 번에 선택하고 옵션·ID 목록은 기본 화면에 노출하지 않는다", async ({
+  page,
+}) => {
+  await connect(page);
+  await page.setViewportSize({ width: 360, height: 600 });
+  await page.evaluate(() => {
+    const s = (window as any).__officeTest;
+    s.seed("Image", { left: 200, top: 100, width: 120, height: 80 });
+    s.seed("Rectangle", { left: 400, top: 100, width: 120, height: 80 });
+  });
+  await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await expect(page.getByLabel("개체 종류", { exact: true })).toBeHidden();
+  const box = await page
+    .getByRole("button", { name: "찾아서 선택", exact: true })
+    .boundingBox();
+  expect(box!.y + box!.height).toBeLessThan(600);
+  await page.getByRole("button", { name: "찾아서 선택", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("3개 선택됨");
+  expect(
+    await page.evaluate(() => (window as any).__officeTest.selected.length),
+  ).toBe(3);
   await expect(
-    page.getByText("도형 1개 · 사진 1개 · 텍스트 상자 0개"),
-  ).toBeVisible();
+    page.getByRole("button", { name: "검색 결과 선택", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".search-results,.object-list,.target-summary"),
+  ).toHaveCount(0);
+  await expect(page.getByText("보존할 원본 제목", { exact: true })).toHaveCount(
+    0,
+  );
+  await page.getByText("검색 옵션", { exact: true }).click();
+  await expect(page.getByLabel("개체 종류", { exact: true })).toBeVisible();
+  await expect(
+    page.getByLabel("크기 허용 차이 (pt)", { exact: true }),
+  ).toHaveCount(0);
+  await page.getByText("검색 옵션", { exact: true }).click();
+  await expect(page.getByLabel("개체 종류", { exact: true })).toBeHidden();
+  await page.screenshot({
+    path: "artifacts/compact-search-360.png",
+    fullPage: true,
+  });
+});
+test("자동 오차와 연속 검색은 기준을 유지하고 직접 선택 변경을 반영한다", async ({
+  page,
+}) => {
+  await connect(page);
+  const ids = await page.evaluate(() => {
+    const s = (window as any).__officeTest;
+    const a = s.seed("Image", { left: 100, top: 100, width: 200, height: 100 }),
+      b = s.seed("Rectangle", { left: 350, top: 100, width: 206, height: 104 }),
+      c = s.seed("Image", { left: 600, top: 200, width: 260, height: 160 });
+    s.selected = [a.id];
+    return { a: a.id, b: b.id, c: c.id };
+  });
+  await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByText("검색 옵션", { exact: true }).click();
+  await page.getByLabel("같은/유사한 크기", { exact: true }).check();
+  await page.getByRole("button", { name: "찾아서 선택", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("2개 선택됨");
+  expect(
+    await page.evaluate(() => (window as any).__officeTest.selected),
+  ).toEqual([ids.a, ids.b]);
+  await page.getByRole("button", { name: "찾아서 선택", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("2개 선택됨");
+  await page.evaluate((id) => {
+    (window as any).__officeTest.selected = [id];
+  }, ids.c);
+  await page.getByRole("button", { name: "찾아서 선택", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("1개 선택됨");
+  expect(
+    await page.evaluate(() => (window as any).__officeTest.selected),
+  ).toEqual([ids.c]);
+});
+test("전체 검색은 현재 슬라이드만 실제 선택하고 범위를 정확히 알린다", async ({
+  page,
+}) => {
+  await connect(page);
+  await page.evaluate(() => {
+    const s = (window as any).__officeTest;
+    s.selectedSlide = "slide-2";
+    s.seed("Image", { left: 100, top: 100, width: 100, height: 80 });
+    s.selectedSlide = "slide-1";
+  });
+  await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByText("검색 옵션", { exact: true }).click();
+  await page.getByLabel("검색 범위", { exact: true }).selectOption("all");
+  await page.getByRole("button", { name: "찾아서 선택", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "전체 2개 찾음 · 현재 슬라이드 1개 선택됨",
+  );
+  expect(
+    await page.evaluate(() => (window as any).__officeTest.selected),
+  ).toEqual(["original"]);
 });

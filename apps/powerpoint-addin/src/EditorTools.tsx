@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Check, LoaderCircle, RefreshCw, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { LoaderCircle, RefreshCw, X } from "lucide-react";
 import {
   EditorService,
   canSetFill,
@@ -13,6 +13,7 @@ import {
 } from "../../../packages/powerpoint-adapter/src/editor";
 import { friendlyError } from "../../../packages/powerpoint-adapter/src";
 import {
+  automaticSimilarity,
   arrange,
   grid,
   swap,
@@ -26,20 +27,6 @@ import {
 } from "../../../packages/layout-engine/src";
 import { type Selection } from "../../../packages/shared/src";
 const editor = new EditorService();
-const objectLabels: Record<string, string> = {
-  Image: "사진",
-  GeometricShape: "도형",
-  TextBox: "텍스트 상자",
-  Line: "선",
-  Group: "그룹",
-  Placeholder: "자리표시자",
-  Graphic: "그래픽",
-  Freeform: "자유 도형",
-  Callout: "말풍선",
-  Table: "표",
-  Chart: "차트",
-  SmartArt: "스마트아트",
-};
 const alignActions: { id: LayoutAction; label: string }[] = [
   { id: "left", label: "왼쪽" },
   { id: "center", label: "가로 중앙" },
@@ -87,13 +74,16 @@ export function EditorTools({
   const [searchScope, setSearchScope] = useState<"slide" | "all">("slide");
   const [scan, setScan] = useState<Scan | null>(null);
   const [objectType, setObjectType] = useState("all");
-  const [searchReference, setSearchReference] = useState<string | null>(null);
+  const lastSearch = useRef<{
+    slideId: string;
+    selectedIds: string[];
+    referenceId?: string;
+  } | null>(null);
   const [matches, setMatches] = useState<Snapshot[]>([]);
   const [matchType, setMatchType] = useState(false),
     [matchColor, setMatchColor] = useState(false),
     [matchSize, setMatchSize] = useState(false);
-  const [tolerance, setTolerance] = useState(0),
-    [sizeTolerance, setSizeTolerance] = useState(1);
+  const tolerance = 24;
   const [fill, setFill] = useState("#264F9E");
   const [oldColor, setOldColor] = useState("#ff0000");
   const [find, setFind] = useState(""),
@@ -116,8 +106,6 @@ export function EditorTools({
     matchType,
     matchColor,
     matchSize,
-    tolerance,
-    sizeTolerance,
     reference,
   ]);
   const disabled = !available || busy;
@@ -234,25 +222,40 @@ export function EditorTools({
   async function search() {
     setScan(null);
     setMatches([]);
-    setSearchReference(null);
     const hasCriteria = matchType || matchColor || matchSize;
     const s = await editor.scan(
       searchScope,
       { text: false, line: false, canvas: false, fill: matchColor },
-      hasCriteria,
+      false,
     );
+    const previous = lastSearch.current;
+    const stillAutoSelection =
+      previous?.slideId === s.target.slideId &&
+      JSON.stringify([...previous.selectedIds].sort()) ===
+        JSON.stringify([...s.target.shapeIds].sort());
+    const referenceId =
+      stillAutoSelection && previous?.referenceId
+        ? previous.referenceId
+        : s.target.shapeIds.length === 1
+          ? s.target.shapeIds[0]
+          : undefined;
     const referenceShape = s.items.find(
-      (x) => x.slideId === s.target.slideId && x.id === s.target.shapeIds[0],
+      (x) => x.slideId === s.target.slideId && x.id === referenceId,
     );
     if (hasCriteria && !referenceShape)
       throw new Error("유사 조건을 사용하려면 기준 개체 하나를 선택해 주세요.");
+    const auto = automaticSimilarity(
+      referenceShape || { width: 100, height: 100 },
+    );
     const candidates = hasCriteria
       ? similar(s.items, referenceShape!, {
           type: matchType,
           color: matchColor,
           size: matchSize,
-          tolerance,
-          sizeTolerance,
+          tolerance: auto.colorTolerance,
+          sizeTolerance: 0,
+          sizeToleranceX: auto.sizeToleranceX,
+          sizeToleranceY: auto.sizeToleranceY,
         })
       : s.items;
     const found = candidates.filter(
@@ -262,10 +265,20 @@ export function EditorTools({
           ? ["GeometricShape", "Callout", "Freeform"].includes(x.type)
           : x.type === objectType),
     );
+    const current = found.filter((x) => x.slideId === s.target.slideId);
+    if (s.target.slideId) {
+      await editor.select({ ...s, scope: "slide" }, current);
+      lastSearch.current = {
+        slideId: s.target.slideId,
+        selectedIds: current.map((x) => x.id),
+        referenceId: referenceShape?.id,
+      };
+    }
     setScan(s);
-    setSearchReference(hasCriteria ? referenceShape!.name : null);
     setMatches(found);
-    return `${found.length}개 찾았습니다. 검색된 개체만 변경됩니다.`;
+    return searchScope === "slide"
+      ? `${current.length}개 선택됨`
+      : `전체 ${found.length}개 찾음 · 현재 슬라이드 ${current.length}개 선택됨`;
   }
   async function batchText(replaceText: boolean) {
     const s = await editor.scan(scope);
@@ -394,67 +407,13 @@ export function EditorTools({
         </div>
       )}
       {busy && (
-        <p className="processing" role="status">
-          <LoaderCircle className="spin" size={15} /> 처리 중…
+        <p role="status" className="processing">
+          <LoaderCircle className="spin" size={15} />
+          처리 중…
         </p>
-      )}
-      {(mode === "layout" || mode === "photos") && (
-        <>
-          <div className="section-heading">
-            <div>
-              <h3>{mode === "layout" ? "정렬 및 크기 통일" : "사진 배치"}</h3>
-              <p>현재 슬라이드의 선택 개체 {selection?.shapes.length || 0}개</p>
-            </div>
-          </div>
-          <details className="canvas-settings">
-            <summary>슬라이드 크기 설정</summary>
-            <p>
-              API가 지원하면 실제 크기를 자동으로 읽습니다. 지원하지 않는 버전은
-              디자인 → 슬라이드 크기의 값을 pt로 입력하세요.
-            </p>
-            <div className="form-row">
-              <label>
-                너비 (pt)
-                <input
-                  type="number"
-                  min={1}
-                  value={canvas.width}
-                  onChange={(e) =>
-                    setCanvas({ ...canvas, width: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <label>
-                높이 (pt)
-                <input
-                  type="number"
-                  min={1}
-                  value={canvas.height}
-                  onChange={(e) =>
-                    setCanvas({ ...canvas, height: Number(e.target.value) })
-                  }
-                />
-              </label>
-            </div>
-          </details>
-        </>
       )}
       {mode === "layout" && (
         <>
-          <label className="field">
-            기준 개체
-            <select
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-            >
-              <option value="">첫 번째 선택 개체</option>
-              {selection?.shapes.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
-                </option>
-              ))}
-            </select>
-          </label>
           <div className="action-grid">
             {alignActions.map((a) => (
               <button
@@ -466,117 +425,102 @@ export function EditorTools({
               </button>
             ))}
           </div>
-          <h4>미세 이동</h4>
-          <div className="form-row">
-            <label>
-              단위
+          <Fold disabled={busy} title="기준 개체·슬라이드 크기">
+            <label className="field">
+              기준 개체
               <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value as typeof unit)}
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
               >
-                <option>pt</option>
-                <option>mm</option>
-                <option>cm</option>
+                <option value="">첫 번째 선택 개체</option>
+                {selection?.shapes.map((x, i) => (
+                  <option key={x.id} value={x.id}>
+                    {i + 1}번 개체
+                  </option>
+                ))}
               </select>
             </label>
-            <label>
-              가로 이동
-              <input
-                type="number"
-                value={dx}
-                onChange={(e) => setDx(Number(e.target.value))}
-              />
-            </label>
-            <label>
-              세로 이동
-              <input
-                type="number"
-                value={dy}
-                onChange={(e) => setDy(Number(e.target.value))}
-              />
-            </label>
-          </div>
-          <button
-            className="secondary full"
-            disabled={disabled}
-            onClick={() =>
-              void run(async () => {
-                const s = await selected();
-                return execute({
-                  title: "미세 이동",
-                  scan: s,
-                  patches: s.items.map((x) => ({
-                    before: x,
-                    bounds: inside(
-                      {
-                        ...x,
-                        left: x.left + toPoints(dx, unit),
-                        top: x.top + toPoints(dy, unit),
-                      },
-                      canvasFor(s),
-                    ),
-                  })),
-                });
-              })
-            }
-          >
-            선택 개체 이동
-          </button>
-          <h4>기본 서식 복제</h4>
-          <p className="field-hint">
-            단색 채우기·테두리 색/두께·균일한 글꼴 서식을 복사합니다. 내용과
-            위치는 유지됩니다.
-          </p>
-          <div className="form-row">
+            <CanvasFields value={canvas} onChange={setCanvas} />
+          </Fold>
+          <Fold disabled={busy} title="미세 이동">
+            <div className="form-row">
+              <label>
+                단위
+                <select
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value as typeof unit)}
+                >
+                  <option>pt</option>
+                  <option>mm</option>
+                  <option>cm</option>
+                </select>
+              </label>
+              <label>
+                가로 이동
+                <input
+                  type="number"
+                  value={dx}
+                  onChange={(e) => setDx(Number(e.target.value))}
+                />
+              </label>
+              <label>
+                세로 이동
+                <input
+                  type="number"
+                  value={dy}
+                  onChange={(e) => setDy(Number(e.target.value))}
+                />
+              </label>
+            </div>
             <button
-              className="secondary"
+              className="secondary full"
               disabled={disabled}
-              onClick={() => void run(copyStyle)}
+              onClick={() =>
+                void run(async () => {
+                  const s = await selected();
+                  return execute({
+                    title: "미세 이동",
+                    scan: s,
+                    patches: s.items.map((x) => ({
+                      before: x,
+                      bounds: inside(
+                        {
+                          ...x,
+                          left: x.left + toPoints(dx, unit),
+                          top: x.top + toPoints(dy, unit),
+                        },
+                        canvasFor(s),
+                      ),
+                    })),
+                  });
+                })
+              }
             >
-              서식 복사
+              선택 개체 이동
             </button>
-            <button
-              className="secondary"
-              disabled={disabled || !copied}
-              onClick={() => void run(pasteStyle)}
-            >
-              서식 붙여넣기
-            </button>
-          </div>
-          {copied && <p className="field-hint">복사한 개체: {copied.name}</p>}
+          </Fold>
+          <Fold disabled={busy} title="서식 복제">
+            <div className="form-row">
+              <button
+                className="secondary"
+                disabled={disabled}
+                onClick={() => void run(copyStyle)}
+              >
+                서식 복사
+              </button>
+              <button
+                className="secondary"
+                disabled={disabled || !copied}
+                onClick={() => void run(pasteStyle)}
+              >
+                서식 붙여넣기
+              </button>
+            </div>
+          </Fold>
         </>
       )}
       {mode === "photos" && (
         <>
-          <div className="form-row">
-            <label>
-              열 수
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={columns}
-                onChange={(e) => setColumns(Number(e.target.value))}
-              />
-            </label>
-            <label>
-              간격 (pt)
-              <input
-                type="number"
-                min={0}
-                value={gap}
-                onChange={(e) => setGap(Number(e.target.value))}
-              />
-            </label>
-          </div>
-          <label className="check-field">
-            <input
-              type="checkbox"
-              checked={keepRatio}
-              onChange={(e) => setKeepRatio(e.target.checked)}
-            />
-            현재 사진 비율 유지
-          </label>
           <button
             className="primary full"
             disabled={disabled}
@@ -603,202 +547,167 @@ export function EditorTools({
           >
             사진 2개 위치 맞교환
           </button>
-          <p className="field-hint">
-            사진 개체의 위치만 바꿉니다. 크기·사진 내용·주변 설명문은
-            유지됩니다.
-          </p>
-          <h4>삭제 후 재배치</h4>
-          <label className="field">
-            삭제할 사진
-            <select
-              value={deleteId}
-              onChange={(e) => setDeleteId(e.target.value)}
+          <Fold disabled={busy} title="사진 배치 옵션">
+            <div className="form-row">
+              <label>
+                열 수
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={columns}
+                  onChange={(e) => setColumns(Number(e.target.value))}
+                />
+              </label>
+              <label>
+                간격 (pt)
+                <input
+                  type="number"
+                  min={0}
+                  value={gap}
+                  onChange={(e) => setGap(Number(e.target.value))}
+                />
+              </label>
+            </div>
+            <label className="check-field">
+              <input
+                type="checkbox"
+                checked={keepRatio}
+                onChange={(e) => setKeepRatio(e.target.checked)}
+              />
+              현재 사진 비율 유지
+            </label>
+            <CanvasFields value={canvas} onChange={setCanvas} />
+          </Fold>
+          <Fold disabled={busy} title="사진 삭제 후 재배치">
+            <label className="field">
+              삭제할 사진
+              <select
+                value={deleteId}
+                onChange={(e) => setDeleteId(e.target.value)}
+              >
+                <option value="">첫 번째 선택 사진</option>
+                {selection?.shapes
+                  .filter((x) => x.type === "Image")
+                  .map((x, i) => (
+                    <option key={x.id} value={x.id}>
+                      {i + 1}번 사진
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="field spaced">
+              남은 사진 배치
+              <select
+                value={reflow}
+                onChange={(e) => setReflow(e.target.value as typeof reflow)}
+              >
+                <option value="grid">빈 공간 채우기</option>
+                <option value="pull">기존 크기로 당기기</option>
+                <option value="keep">기존 위치 유지</option>
+              </select>
+            </label>
+            <button
+              className="danger full"
+              disabled={disabled}
+              onClick={() => void run(stagePhotoDelete)}
             >
-              <option value="">첫 번째 선택 사진</option>
-              {selection?.shapes
-                .filter((x) => x.type === "Image")
-                .map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label className="field spaced">
-            남은 사진 배치
-            <select
-              value={reflow}
-              onChange={(e) => setReflow(e.target.value as typeof reflow)}
-            >
-              <option value="grid">빈 공간 채우기 (그리드)</option>
-              <option value="pull">기존 크기로 앞자리 당기기</option>
-              <option value="keep">기존 위치 유지</option>
-            </select>
-          </label>
-          <button
-            className="danger full"
-            disabled={disabled}
-            onClick={() => void run(stagePhotoDelete)}
-          >
-            <Trash2 size={15} /> 삭제 대상 확인
-          </button>
-          <p className="field-hint">
-            삭제할 사진과 남길 사진을 함께 선택하세요. 선택한 사진의 전체 영역
-            안에서만 재배치합니다.
-          </p>
+              삭제 대상 확인
+            </button>
+          </Fold>
         </>
-      )}
-      {(mode === "similar" || mode === "text") && (
-        <label className="field">
-          작업 범위
-          <select
-            value={mode === "similar" ? searchScope : scope}
-            onChange={(e) => {
-              if (mode === "similar")
-                setSearchScope(e.target.value as "slide" | "all");
-              else setScope(e.target.value as Scope);
-              setScan(null);
-              setMatches([]);
-            }}
-          >
-            {mode !== "similar" && <option value="selected">선택 개체</option>}
-            <option value="slide">현재 슬라이드</option>
-            <option value="all">전체 프레젠테이션</option>
-          </select>
-        </label>
       )}
       {mode === "similar" && (
         <>
-          <h4>도형·사진·텍스트 찾기</h4>
-          <label className="field">
-            개체 종류
-            <select
-              aria-label="개체 종류"
-              value={objectType}
-              onChange={(e) => setObjectType(e.target.value)}
-            >
-              <option value="all">모든 개체</option>
-              <option value="shape">도형</option>
-              <option value="Image">사진</option>
-              <option value="TextBox">텍스트 상자</option>
-              <option value="Line">선</option>
-              <option value="Group">그룹</option>
-            </select>
-          </label>
-          <p className="field-hint">
-            개체를 선택하지 않아도 전체 목록을 찾습니다. 아래 유사 조건을 사용할
-            때만 기준 개체 한 개를 선택하세요. 같은 유형은 사진·도형 같은 큰
-            분류 기준이며 세부 도형 모양은 구분하지 않습니다. 사진 속 픽셀이나
-            그룹 내부 개체를 개별 도형으로 분리하지는 않습니다.
-          </p>
-          <h4>유사 조건 (선택 사항)</h4>
-          <label className="check-field">
-            <input
-              type="checkbox"
-              checked={matchType}
-              onChange={(e) => setMatchType(e.target.checked)}
-            />
-            같은 개체 유형
-          </label>
-          <label className="check-field">
-            <input
-              type="checkbox"
-              checked={matchColor}
-              onChange={(e) => setMatchColor(e.target.checked)}
-            />
-            같은/유사한 단색 채우기
-          </label>
-          <label className="check-field">
-            <input
-              type="checkbox"
-              checked={matchSize}
-              onChange={(e) => setMatchSize(e.target.checked)}
-            />
-            같은/유사한 크기
-          </label>
-          <div className="form-row">
-            <label>
-              색상 허용 차이 (0~442)
-              <input
-                type="number"
-                min={0}
-                max={442}
-                value={tolerance}
-                onChange={(e) => setTolerance(Number(e.target.value))}
-              />
-            </label>
-            <label>
-              크기 허용 차이 (pt)
-              <input
-                type="number"
-                min={0}
-                value={sizeTolerance}
-                onChange={(e) => setSizeTolerance(Number(e.target.value))}
-              />
-            </label>
-          </div>
           <button
-            className="secondary full"
+            className="primary full"
             disabled={disabled}
             onClick={() => void run(search)}
           >
             <RefreshCw size={14} />
-            개체 찾기
+            찾아서 선택
           </button>
-          {scan && (
-            <>
-              <p className="field-hint">
-                {searchReference
-                  ? `기준 개체: ${searchReference}`
-                  : "기준 개체 없이 전체 조회"}
-              </p>
-              <p className="field-hint">
-                도형{" "}
-                {
-                  matches.filter((x) =>
-                    ["GeometricShape", "Callout", "Freeform"].includes(x.type),
-                  ).length
+          <Fold disabled={busy} title="검색 옵션">
+            <div className="form-row">
+              <label>
+                검색 범위
+                <select
+                  aria-label="검색 범위"
+                  value={searchScope}
+                  onChange={(e) =>
+                    setSearchScope(e.target.value as typeof searchScope)
+                  }
+                >
+                  <option value="slide">현재 슬라이드</option>
+                  <option value="all">전체 프레젠테이션</option>
+                </select>
+              </label>
+              <label>
+                개체 종류
+                <select
+                  aria-label="개체 종류"
+                  value={objectType}
+                  onChange={(e) => setObjectType(e.target.value)}
+                >
+                  <option value="all">모든 개체</option>
+                  <option value="shape">도형</option>
+                  <option value="Image">사진</option>
+                  <option value="TextBox">텍스트 상자</option>
+                  <option value="Line">선</option>
+                  <option value="Group">그룹</option>
+                </select>
+              </label>
+            </div>
+            <label className="check-field">
+              <input
+                type="checkbox"
+                checked={matchType}
+                onChange={(e) => setMatchType(e.target.checked)}
+              />
+              같은 개체 유형
+            </label>
+            <label className="check-field">
+              <input
+                type="checkbox"
+                checked={matchColor}
+                onChange={(e) => setMatchColor(e.target.checked)}
+              />
+              같은/유사한 단색 채우기
+            </label>
+            <label className="check-field">
+              <input
+                type="checkbox"
+                checked={matchSize}
+                onChange={(e) => setMatchSize(e.target.checked)}
+              />
+              같은/유사한 크기
+            </label>
+            <p className="field-hint">
+              유사 조건은 기준 개체 하나를 선택해 사용하세요. 크기·색상 허용
+              오차는 자동으로 계산합니다. 전체 검색도 실제 선택은 현재
+              슬라이드에서만 가능합니다.
+            </p>
+          </Fold>
+          {scan && matches.length > 0 && (
+            <Fold disabled={busy} title="찾은 개체 편집">
+              <button
+                className="danger full"
+                disabled={disabled}
+                onClick={() =>
+                  setConfirm({
+                    title: "검색 개체 삭제",
+                    scan,
+                    patches: matches.map((x) => ({ before: x, remove: true })),
+                  })
                 }
-                개 · 사진 {matches.filter((x) => x.type === "Image").length}개 ·
-                텍스트 상자 {matches.filter((x) => x.type === "TextBox").length}
-                개
-              </p>
-              <ResultList items={matches} />
-              <div className="form-row">
-                <button
-                  className="secondary"
-                  disabled={disabled || scan.scope === "all" || !matches.length}
-                  onClick={() =>
-                    void run(async () => {
-                      await editor.select(scan, matches);
-                      return `${matches.length}개 선택 완료`;
-                    })
-                  }
-                >
-                  검색 결과 선택
-                </button>
-                <button
-                  className="danger"
-                  disabled={disabled || !matches.length}
-                  onClick={() =>
-                    setConfirm({
-                      title: "검색 개체 삭제",
-                      scan,
-                      patches: matches.map((x) => ({
-                        before: x,
-                        remove: true,
-                      })),
-                    })
-                  }
-                >
-                  검색 결과 삭제
-                </button>
-              </div>
+              >
+                찾은 개체 {matches.length}개 삭제
+              </button>
               <label className="field spaced">
-                변경할 채우기 색상
+                채우기 색상
                 <input
-                  aria-label="변경할 채우기 색상"
                   type="color"
+                  aria-label="채우기 색상"
                   value={fill}
                   onChange={(e) => setFill(e.target.value)}
                 />
@@ -818,138 +727,136 @@ export function EditorTools({
                   else void run(() => execute(plan));
                 }}
               >
-                채우기 색상 변경 (
-                {matches.filter((x) => canSetFill(x.type)).length}개)
+                색상 적용
               </button>
-            </>
+            </Fold>
           )}
         </>
       )}
       {mode === "text" && (
         <>
-          <h4>글꼴 및 텍스트 서식</h4>
-          <div className="form-row">
-            <label>
-              <span>
-                <input
-                  type="checkbox"
-                  checked={useFont}
-                  onChange={(e) => setUseFont(e.target.checked)}
-                />
-                글꼴
-              </span>
-              <input
-                aria-label="글꼴 이름"
-                value={fontName}
-                onChange={(e) => setFontName(e.target.value)}
-              />
-            </label>
-            <label>
-              <span>
-                <input
-                  type="checkbox"
-                  checked={useSize}
-                  onChange={(e) => setUseSize(e.target.checked)}
-                />
-                크기 (pt)
-              </span>
-              <input
-                aria-label="글자 크기"
-                type="number"
-                min={1}
-                max={400}
-                value={fontSize}
-                onChange={(e) => setFontSize(Number(e.target.value))}
-              />
-            </label>
-          </div>
-          <label className="check-field">
-            <input
-              type="checkbox"
-              checked={useColor}
-              onChange={(e) => setUseColor(e.target.checked)}
-            />
-            글자 색상 변경
-            <input
-              aria-label="글자 색상"
-              type="color"
-              value={fontColor}
-              onChange={(e) => setFontColor(e.target.value)}
-            />
-          </label>
-          <button
-            className="primary full"
-            disabled={disabled}
-            onClick={() => void run(() => batchText(false))}
-          >
-            텍스트 서식 적용
-          </button>
-          <h4>문구 찾기 및 바꾸기</h4>
           <label className="field">
-            찾을 문구
-            <input value={find} onChange={(e) => setFind(e.target.value)} />
+            작업 범위
+            <select
+              value={scope}
+              onChange={(e) => setScope(e.target.value as Scope)}
+            >
+              <option value="selected">선택 개체</option>
+              <option value="slide">현재 슬라이드</option>
+              <option value="all">전체 프레젠테이션</option>
+            </select>
           </label>
-          <label className="field spaced">
-            바꿀 문구
-            <input
-              value={replace}
-              onChange={(e) => setReplace(e.target.value)}
-            />
-          </label>
-          <button
-            className="secondary full spaced"
-            disabled={disabled}
-            onClick={() => void run(() => batchText(true))}
-          >
-            문구 바꾸기
-          </button>
-          <p className="field-hint">
-            대소문자를 구분합니다. 텍스트 상자 전체 문자열을 갱신하므로 문장
-            중간의 서로 다른 서식은 유지되지 않을 수 있습니다.
-          </p>
-          <h4>색상 일괄 교체</h4>
-          <div className="form-row">
-            <label>
-              기존 색
+          <Fold disabled={busy} title="글꼴·크기·색상">
+            <div className="form-row">
+              <label>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={useFont}
+                    onChange={(e) => setUseFont(e.target.checked)}
+                  />
+                  글꼴
+                </span>
+                <input
+                  aria-label="글꼴 이름"
+                  value={fontName}
+                  onChange={(e) => setFontName(e.target.value)}
+                />
+              </label>
+              <label>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={useSize}
+                    onChange={(e) => setUseSize(e.target.checked)}
+                  />
+                  크기 (pt)
+                </span>
+                <input
+                  aria-label="글자 크기"
+                  type="number"
+                  min={1}
+                  max={400}
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                />
+              </label>
+            </div>
+            <label className="check-field">
+              <input
+                type="checkbox"
+                checked={useColor}
+                onChange={(e) => setUseColor(e.target.checked)}
+              />
+              글자 색상 변경
               <input
                 type="color"
-                aria-label="기존 색"
-                value={oldColor}
-                onChange={(e) => setOldColor(e.target.value)}
+                aria-label="글자 색상"
+                value={fontColor}
+                onChange={(e) => setFontColor(e.target.value)}
               />
             </label>
-            <label>
-              새 색
+            <button
+              className="primary full"
+              disabled={disabled}
+              onClick={() => void run(() => batchText(false))}
+            >
+              텍스트 서식 적용
+            </button>
+          </Fold>
+          <Fold disabled={busy} title="문구 찾기·바꾸기">
+            <label className="field">
+              찾을 문구
+              <input value={find} onChange={(e) => setFind(e.target.value)} />
+            </label>
+            <label className="field spaced">
+              바꿀 문구
               <input
-                type="color"
-                aria-label="새 색"
-                value={fill}
-                onChange={(e) => setFill(e.target.value)}
+                value={replace}
+                onChange={(e) => setReplace(e.target.value)}
               />
             </label>
-            <label>
-              허용 차이
-              <input
-                type="number"
-                min={0}
-                max={442}
-                value={tolerance}
-                onChange={(e) => setTolerance(Number(e.target.value))}
-              />
-            </label>
-          </div>
-          <button
-            className="secondary full"
-            disabled={disabled}
-            onClick={() => void run(colorReplace)}
-          >
-            일치하는 색상 교체
-          </button>
-          <p className="field-hint">
-            단색 채우기·테두리·균일한 글자 색상이 대상입니다. 그룹 내부·표
-            셀·이미지 속 문자는 제외됩니다. 전체 프레젠테이션 변경에는 대상
-            확인이 표시됩니다.
-          </p>
+            <button
+              className="secondary full spaced"
+              disabled={disabled}
+              onClick={() => void run(() => batchText(true))}
+            >
+              문구 바꾸기
+            </button>
+          </Fold>
+          <Fold disabled={busy} title="색상 일괄 교체">
+            <div className="form-row">
+              <label>
+                기존 색
+                <input
+                  type="color"
+                  aria-label="기존 색"
+                  value={oldColor}
+                  onChange={(e) => setOldColor(e.target.value)}
+                />
+              </label>
+              <label>
+                새 색
+                <input
+                  type="color"
+                  aria-label="새 색"
+                  value={fill}
+                  onChange={(e) => setFill(e.target.value)}
+                />
+              </label>
+            </div>
+            <button
+              className="secondary full"
+              disabled={disabled}
+              onClick={() => void run(colorReplace)}
+            >
+              일치하는 색상 교체
+            </button>
+            <p className="field-hint">
+              유사한 단색 채우기·테두리·균일한 글자 색상을 자동 범위로
+              비교합니다.
+            </p>
+          </Fold>
         </>
       )}
       {confirm && (
@@ -989,17 +896,6 @@ export function EditorTools({
                 ? ` · 삭제 ${confirm.patches.filter((x) => x.remove).length}개`
                 : ""}
             </p>
-            <ResultList
-              items={confirm.patches.map((x) => ({
-                ...x.before,
-                name:
-                  (x.remove ? "[삭제] " : x.bounds ? "[재배치] " : "[변경] ") +
-                  x.before.name,
-              }))}
-            />
-            <p className="field-hint">
-              표시된 개체만 변경합니다. 원본을 저장한 후 실행하세요.
-            </p>
             <div className="modal-actions">
               <button
                 className="secondary"
@@ -1031,22 +927,53 @@ export function EditorTools({
     </section>
   );
 }
-function ResultList({ items }: { items: Snapshot[] }) {
+function Fold({ title, children, disabled=false }: { title: string; children: ReactNode; disabled?:boolean }) {
   return (
-    <div className="search-results">
-      <strong>
-        대상 {items.length}개 · {new Set(items.map((x) => x.slideId)).size}장
-      </strong>
-      <ul>
-        {items.map((x) => (
-          <li key={x.slideId + "-" + x.id}>
-            <span>{x.name}</span>
-            <small>
-              {objectLabels[x.type] || x.type} · 슬라이드 ID {x.slideId}
-            </small>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <details className="option-box">
+      <summary>{title}</summary>
+      <fieldset className="option-content" disabled={disabled}>
+        {children}
+      </fieldset>
+    </details>
+  );
+}
+function CanvasFields({
+  value,
+  onChange,
+}: {
+  value: Canvas;
+  onChange: (value: Canvas) => void;
+}) {
+  return (
+    <>
+      <p className="field-hint">
+        슬라이드 크기는 지원되는 버전에서 자동 감지합니다. 필요한 경우 직접
+        입력하세요.
+      </p>
+      <div className="form-row">
+        <label>
+          너비 (pt)
+          <input
+            type="number"
+            min={1}
+            value={value.width}
+            onChange={(e) =>
+              onChange({ ...value, width: Number(e.target.value) })
+            }
+          />
+        </label>
+        <label>
+          높이 (pt)
+          <input
+            type="number"
+            min={1}
+            value={value.height}
+            onChange={(e) =>
+              onChange({ ...value, height: Number(e.target.value) })
+            }
+          />
+        </label>
+      </div>
+    </>
   );
 }

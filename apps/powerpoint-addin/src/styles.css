@@ -1200,3 +1200,46 @@ main {
   max-height: 260px;
   overflow: auto;
 }
+.selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8191a7;
+  font-size: 11px;
+  padding: 0 1px 10px;
+  margin-bottom: 8px;
+}
+.option-box {
+  border: 1px solid #e0e7f0;
+  border-radius: 8px;
+  margin-top: 12px;
+  background: #fbfcff;
+}
+.option-box > summary {
+  cursor: pointer;
+  color: #587496;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px;
+  list-style-position: inside;
+}
+.option-box[open] > summary {
+  border-bottom: 1px solid #e7edf5;
+}
+.option-content {
+  padding: 13px;
+}
+.option-content > .form-row:first-child {
+  margin-top: 0;
+}
+.advanced-tools .action-grid {
+  margin-top: 0;
+}
+.advanced-tools .tool-modes {
+  margin-bottom: 16px;
+}
+fieldset.option-content {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+}

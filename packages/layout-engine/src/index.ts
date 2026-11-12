@@ -206,3 +206,14 @@ export const toPoints = (value: number, unit: "pt" | "mm" | "cm") =>
   value * (unit === "mm" ? 72 / 25.4 : unit === "cm" ? 72 / 2.54 : 1);
 export const fromPoints = (value: number, unit: "pt" | "mm" | "cm") =>
   value / (unit === "mm" ? 72 / 25.4 : unit === "cm" ? 72 / 2.54 : 1);
+
+/** Automatic tolerances in PowerPoint points, independent of display pixel density. */
+export function automaticSimilarity(bounds: Pick<Bounds, "width" | "height">) {
+  const tolerance = (value: number) =>
+    Math.max(1.5, Math.min(18, Math.abs(value) * 0.05));
+  return {
+    sizeToleranceX: tolerance(bounds.width),
+    sizeToleranceY: tolerance(bounds.height),
+    colorTolerance: 24,
+  };
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  automaticSimilarity,
   arrange,
   grid,
   swap,
@@ -138,5 +139,51 @@ describe("유사 개체 조건", () => {
         sizeTolerance: 0,
       }),
     ).toThrow();
+  });
+});
+
+describe("자동 유사 오차", () => {
+  it("기준 크기에 비례한 가로·세로 오차를 사용하고 지나치게 넓어지지 않는다", () => {
+    const small = automaticSimilarity({ width: 20, height: 10 });
+    expect(small.sizeToleranceX).toBe(1.5);
+    expect(small.sizeToleranceY).toBe(1.5);
+    const photo = automaticSimilarity({ width: 300, height: 200 });
+    expect(photo.sizeToleranceX).toBe(15);
+    expect(photo.sizeToleranceY).toBe(10);
+    const large = automaticSimilarity({ width: 3000, height: 2000 });
+    expect(large.sizeToleranceX).toBe(18);
+    expect(large.sizeToleranceY).toBe(18);
+  });
+  it("자동 범위 안의 사진·도형을 찾고 명확히 다른 크기는 제외한다", () => {
+    const base: Snapshot = {
+      id: "a",
+      slideId: "s",
+      name: "a",
+      type: "Image",
+      left: 0,
+      top: 0,
+      width: 300,
+      height: 200,
+    };
+    const close = {
+      ...base,
+      id: "b",
+      type: "GeometricShape",
+      width: 312,
+      height: 207,
+    };
+    const different = { ...base, id: "c", width: 350, height: 220 };
+    const auto = automaticSimilarity(base);
+    expect(
+      similar([base, close, different], base, {
+        type: false,
+        color: false,
+        size: true,
+        tolerance: auto.colorTolerance,
+        sizeTolerance: 0,
+        sizeToleranceX: auto.sizeToleranceX,
+        sizeToleranceY: auto.sizeToleranceY,
+      }).map((x) => x.id),
+    ).toEqual(["a", "b"]);
   });
 });

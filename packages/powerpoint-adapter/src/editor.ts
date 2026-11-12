@@ -314,6 +314,8 @@ export function similar(
     size: boolean;
     tolerance: number;
     sizeTolerance: number;
+    sizeToleranceX?: number;
+    sizeToleranceY?: number;
   },
 ): Snapshot[] {
   if (!criteria.type && !criteria.color && !criteria.size)
@@ -327,7 +329,9 @@ export function similar(
         (!!x.fill &&
           colorDistance(x.fill, reference.fill!) <= criteria.tolerance)) &&
       (!criteria.size ||
-        (Math.abs(x.width - reference.width) <= criteria.sizeTolerance &&
-          Math.abs(x.height - reference.height) <= criteria.sizeTolerance)),
+        (Math.abs(x.width - reference.width) <=
+          (criteria.sizeToleranceX ?? criteria.sizeTolerance) &&
+          Math.abs(x.height - reference.height) <=
+            (criteria.sizeToleranceY ?? criteria.sizeTolerance))),
   );
 }
