@@ -35,3 +35,9 @@ XML 방식은 Windows 테스트 카탈로그와 호환되는 명시적 선택입
 - Shape.rotation은 1.10이므로 기본 1.5 호환 기능으로 잘못 제공하지 않습니다.
 - GeometricShape의 세부 프리셋 종류 읽기 기능이 Shape 1.5에 없으므로 사각형/화살표를 같은 유형 검색에서 구분했다고 주장하지 않습니다.
 - 새 편집 도구 상세 제한과 구현 상태는 PHASE2.md를 참조합니다.
+
+## PowerPoint 단축키 (v0.2.4)
+
+현재 공식 문서에서 PowerPoint Windows 2601 (19628.20150) 이상 및 월 단위 엔터프라이즈 2604 (19929.20172) 이상은 공유 런타임 기반 키를 지원합니다. 기존 등록은 유지하고 별도 ID의 manifest.keyboard.xml에만 SharedRuntime 1.1·Runtime(long)·ExtendedOverrides JSON을 선언했습니다. Runtime과 FunctionFile, ShowTaskpane 모두 동일 Taskpane.Url 리소스를 사용하고 TaskpaneId를 제거했습니다. 런타임에서는 지원 여부와 keyboard=1을 확인한 뒤 Office.actions.associate를 호출합니다. 기본 등록은 DOM 키 이벤트로 작업창 포커스에서만 사용합니다. Windows 실제 전역 키 검증은 미실행입니다.
+
+공식 근거는 SHORTCUTS.md에 링크했습니다.

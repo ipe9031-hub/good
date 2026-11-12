@@ -1,3 +1,8 @@
+import {
+  installPaneShortcuts,
+  subscribeShortcuts,
+  type ShortcutRequest,
+} from "./shortcuts";
 import { EditorTools } from "./EditorTools";
 import {
   useCallback,
@@ -53,6 +58,9 @@ export function App() {
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(
     null,
   );
+  const [shortcutRequest, setShortcutRequest] =
+    useState<ShortcutRequest | null>(null);
+  const shortcutSequence = useRef(0);
   const mounted = useRef(true);
   const locked = useRef(false);
   const refresh = useCallback(async () => {
@@ -131,6 +139,16 @@ export function App() {
         );
     };
   }, [refresh]);
+  useEffect(() => installPaneShortcuts(), []);
+  useEffect(
+    () =>
+      subscribeShortcuts((command) => {
+        if (locked.current || pending) return;
+        setTab("tools");
+        setShortcutRequest({ id: ++shortcutSequence.current, command });
+      }),
+    [pending],
+  );
   const enabled = host === "ready" && !busy;
   const stage = (make: (s: Selection) => Pending) => {
     try {
@@ -356,6 +374,12 @@ export function App() {
           )}
           {tab === "tools" && (
             <EditorTools
+              shortcutRequest={shortcutRequest}
+              onShortcutHandled={(id) =>
+                setShortcutRequest((current) =>
+                  current?.id === id ? null : current,
+                )
+              }
               available={enabled}
               selection={selection}
               onRefresh={refresh}
@@ -423,7 +447,7 @@ export function App() {
             <span>
               <ShieldCheck size={13} /> 원본 파일을 먼저 저장해 주세요
             </span>
-            <span>v0.2.3</span>
+            <span>v0.2.4</span>
           </footer>
         </main>
       </div>

@@ -7,6 +7,7 @@
     shapes: [],
     calls: [],
     handler: null,
+    actions: {},
   });
   const collection = (items) => ({ items, load() {} });
   function shape(kind, options, text = "") {
@@ -79,6 +80,16 @@
     },
   });
   window.Office = {
+    actions: {
+      associate(id, handler) {
+        state.actions[id] = handler;
+      },
+    },
+    addin: {
+      showAsTaskpane: async () => {
+        state.calls.push("show-pane");
+      },
+    },
     HostType: { PowerPoint: "PowerPoint" },
     EventType: { DocumentSelectionChanged: "selection" },
     CoercionType: { Image: "image" },

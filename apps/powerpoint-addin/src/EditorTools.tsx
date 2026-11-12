@@ -1,3 +1,9 @@
+import {
+  SHORTCUTS,
+  globalShortcutsRegistered,
+  type ShortcutCommand,
+  type ShortcutRequest,
+} from "./shortcuts";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LoaderCircle, RefreshCw, X } from "lucide-react";
 import {
@@ -25,7 +31,11 @@ import {
   type Canvas,
   type LayoutAction,
 } from "../../../packages/layout-engine/src";
-import { type Selection } from "../../../packages/shared/src";
+import {
+  assertSameTarget,
+  type Target,
+  type Selection,
+} from "../../../packages/shared/src";
 const editor = new EditorService();
 const alignActions: { id: LayoutAction; label: string }[] = [
   { id: "left", label: "왼쪽" },
@@ -36,18 +46,19 @@ const alignActions: { id: LayoutAction; label: string }[] = [
   { id: "bottom", label: "아래쪽" },
   { id: "horizontal", label: "가로 간격" },
   { id: "vertical", label: "세로 간격" },
-  { id: "width", label: "너비 통일" },
-  { id: "height", label: "높이 통일" },
   { id: "size", label: "크기 복제" },
-  { id: "position", label: "위치 복제" },
 ];
 export function EditorTools({
   available,
   selection,
   onBusy,
   onRefresh,
+  shortcutRequest,
+  onShortcutHandled,
 }: {
   available: boolean;
+  shortcutRequest?: ShortcutRequest | null;
+  onShortcutHandled?: (id: number) => void;
   selection: Selection | null;
   onBusy: (busy: boolean) => void;
   onRefresh: () => Promise<void>;
@@ -96,6 +107,12 @@ export function EditorTools({
     [useColor, setUseColor] = useState(false);
   const [copied, setCopied] = useState<Snapshot | null>(null);
   const [confirm, setConfirm] = useState<Plan | null>(null);
+  const [arrangement, setArrangement] = useState<{
+    target: Target;
+    count: number;
+  } | null>(null);
+  const handledShortcut = useRef(0);
+  const findButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     setScan(null);
     setMatches([]);
@@ -143,9 +160,15 @@ export function EditorTools({
     return s;
   }
   const canvasFor = (s: Scan) => s.canvas || canvas;
-  async function layout(action: LayoutAction) {
+  async function layout(action: LayoutAction, expected?: Target) {
     const s = await selected();
-    const result = arrange(s.items, action, canvasFor(s), reference);
+    if (expected) assertSameTarget(expected, s.target, true);
+    const result = arrange(
+      s.items,
+      action,
+      canvasFor(s),
+      reference || lastSearch.current?.referenceId,
+    );
     return execute({
       title: alignActions.find((a) => a.id === action)!.label,
       scan: s,
@@ -276,6 +299,17 @@ export function EditorTools({
     }
     setScan(s);
     setMatches(found);
+    setArrangement(
+      current.length >= 2
+        ? {
+            target: {
+              slideId: s.target.slideId,
+              shapeIds: current.map((x) => x.id),
+            },
+            count: current.length,
+          }
+        : null,
+    );
     return searchScope === "slide"
       ? `${current.length}개 선택됨`
       : `전체 ${found.length}개 찾음 · 현재 슬라이드 ${current.length}개 선택됨`;
@@ -371,19 +405,50 @@ export function EditorTools({
       .filter((x) => Object.keys(x).length > 1);
     return execute({ title: "기본 서식 붙여넣기", scan: s, patches });
   }
+  function chooseArrangement(action: LayoutAction) {
+    const expected = arrangement?.target;
+    setArrangement(null);
+    void run(() => layout(action, expected));
+  }
+  function invokeShortcut(command: ShortcutCommand) {
+    if (command === "find") {
+      setMode("similar");
+      setArrangement(null);
+      void run(search);
+    } else {
+      if (command === "size") setMode("layout");
+      chooseArrangement(command);
+    }
+  }
+  useEffect(() => {
+    if (!shortcutRequest || shortcutRequest.id === handledShortcut.current)
+      return;
+    if (!available && !busy) return;
+    handledShortcut.current = shortcutRequest.id;
+    onShortcutHandled?.(shortcutRequest.id);
+    if (busy || confirm) return;
+    invokeShortcut(shortcutRequest.command);
+  }, [shortcutRequest, available, busy, confirm, onShortcutHandled]);
   return (
     <section className="editor-card advanced-tools">
       <nav className="tool-modes" aria-label="기본 편집 도구">
         {(
           [
-            { id: "layout", label: "정렬·크기" },
+            { id: "layout", label: "크기 복제" },
             { id: "photos", label: "사진 배치" },
-            { id: "similar", label: "개체 검색" },
+            { id: "similar", label: "찾기" },
             { id: "text", label: "텍스트·색상" },
           ] as const
         ).map((t) => (
           <button
             key={t.id}
+            aria-label={
+              t.id === "layout"
+                ? "크기 복제 도구"
+                : t.id === "similar"
+                  ? "찾기 도구"
+                  : t.label
+            }
             aria-pressed={mode === t.id}
             className={mode === t.id ? "active" : ""}
             onClick={() => {
@@ -414,17 +479,15 @@ export function EditorTools({
       )}
       {mode === "layout" && (
         <>
-          <div className="action-grid">
-            {alignActions.map((a) => (
-              <button
-                key={a.id}
-                disabled={disabled}
-                onClick={() => void run(() => layout(a.id))}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
+          <button
+            aria-label="크기 복제"
+            className="primary full"
+            title="크기 복제 (Ctrl+Alt+Shift+C)"
+            disabled={disabled}
+            onClick={() => void run(() => layout("size"))}
+          >
+            크기 복제 <kbd>Ctrl+Alt+Shift+C</kbd>
+          </button>
           <Fold disabled={busy} title="기준 개체·슬라이드 크기">
             <label className="field">
               기준 개체
@@ -620,12 +683,15 @@ export function EditorTools({
       {mode === "similar" && (
         <>
           <button
+            ref={findButton}
             className="primary full"
+            title="찾기 (Ctrl+Alt+Shift+F)"
+            aria-label="찾기 실행"
             disabled={disabled}
             onClick={() => void run(search)}
           >
             <RefreshCw size={14} />
-            찾아서 선택
+            찾기
           </button>
           <Fold disabled={busy} title="검색 옵션">
             <div className="form-row">
@@ -859,6 +925,86 @@ export function EditorTools({
           </Fold>
         </>
       )}
+      <Fold title="단축키">
+        <p className="field-hint">
+          {globalShortcutsRegistered()
+            ? "슬라이드와 작업창에서 사용 가능"
+            : "현재 등록에서는 작업창에 포커스가 있을 때 사용합니다. 슬라이드 단축키는 최신 Office와 별도 단축키 등록 파일이 필요합니다."}
+        </p>
+        <div className="shortcut-list">
+          {SHORTCUTS.map((x) => (
+            <div key={x.id}>
+              <span>{x.label}</span>
+              <kbd>Ctrl+Alt+Shift+{x.key}</kbd>
+            </div>
+          ))}
+        </div>
+      </Fold>
+      {arrangement && (
+        <div className="modal-backdrop">
+          <section
+            className="modal arrangement-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="arrangement-title"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setArrangement(null);
+                findButton.current?.focus();
+              }
+              if (e.key === "Tab") {
+                const buttons = [
+                  ...e.currentTarget.querySelectorAll<HTMLButtonElement>(
+                    "button:not(:disabled)",
+                  ),
+                ];
+                if (e.shiftKey && document.activeElement === buttons[0]) {
+                  e.preventDefault();
+                  buttons.at(-1)?.focus();
+                } else if (
+                  !e.shiftKey &&
+                  document.activeElement === buttons.at(-1)
+                ) {
+                  e.preventDefault();
+                  buttons[0]?.focus();
+                }
+              }
+            }}
+          >
+            <div className="modal-top">
+              <h3 id="arrangement-title">어떻게 배치할까요?</h3>
+              <button
+                aria-label="배치 선택 닫기"
+                onClick={() => {
+                  setArrangement(null);
+                  findButton.current?.focus();
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p>현재 슬라이드 {arrangement.count}개 선택됨</p>
+            <div className="action-grid">
+              {alignActions.map((a) => (
+                <button
+                  autoFocus={a.id === "left"}
+                  key={a.id}
+                  disabled={disabled}
+                  title={
+                    SHORTCUTS.find((x) => x.command === a.id)
+                      ? `Ctrl+Alt+Shift+${SHORTCUTS.find((x) => x.command === a.id)!.key}`
+                      : a.label
+                  }
+                  onClick={() => chooseArrangement(a.id)}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+            <p className="field-hint">배치 방법을 누르면 바로 적용합니다.</p>
+          </section>
+        </div>
+      )}
       {confirm && (
         <div className="modal-backdrop">
           <section
@@ -927,7 +1073,15 @@ export function EditorTools({
     </section>
   );
 }
-function Fold({ title, children, disabled=false }: { title: string; children: ReactNode; disabled?:boolean }) {
+function Fold({
+  title,
+  children,
+  disabled = false,
+}: {
+  title: string;
+  children: ReactNode;
+  disabled?: boolean;
+}) {
   return (
     <details className="option-box">
       <summary>{title}</summary>
