@@ -17,7 +17,7 @@ test("PowerPoint 밖에서는 편집을 막고 설치 안내를 제공한다", a
   await page.setViewportSize({ width: 360, height: 900 });
   await page.goto("/");
   await expect(
-    page.getByRole("button", { name: "삽입", exact: true }),
+    page.getByRole("button", { name: "왼쪽", exact: true }),
   ).toBeDisabled();
   await page.getByRole("button", { name: /설치 안내 보기/ }).click();
   await expect(
@@ -28,22 +28,6 @@ test("PowerPoint 밖에서는 편집을 막고 설치 안내를 제공한다", a
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-});
-test("텍스트와 기본 도형은 확인창 없이 한 번에 삽입한다", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  await connect(page);
-  await page.getByRole("button", { name: "삽입", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("status")).toContainText("완료");
-  await page.getByRole("button", { name: /기본 도형 핵심/ }).click();
-  await page.getByLabel("도형 종류").selectOption("Ellipse");
-  await page.getByRole("button", { name: "삽입", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("원 삽입 완료");
-  expect(await page.evaluate(() => (window as any).__officeTest.calls)).toEqual(
-    ["TextBox", "Ellipse"],
-  );
-  expect(errors).toEqual([]);
 });
 test("승인 전 선택이 바뀌면 삭제를 중단하고 기존 개체를 보존한다", async ({
   page,
@@ -87,24 +71,6 @@ test("선택 개체 위치 변경과 승인 삭제", async ({ page }) => {
     await page.evaluate(() => (window as any).__officeTest.shapes.length),
   ).toBe(0);
 });
-test("사진 파일 검증, 미리보기, 삽입", async ({ page }) => {
-  await connect(page);
-  await page.getByRole("button", { name: /사진 현장을/ }).click();
-  await page.getByLabel("사진 파일 선택").setInputFiles({
-    name: "bad.svg",
-    mimeType: "image/svg+xml",
-    buffer: Buffer.from("<svg/>"),
-  });
-  await expect(page.getByRole("alert")).toContainText("PNG 또는 JPEG");
-  await page.getByLabel("사진 파일 선택").setInputFiles({
-    name: "test.png",
-    mimeType: "image/png",
-    buffer: readFileSync("apps/powerpoint-addin/public/assets/icon-80.png"),
-  });
-  await expect(page.getByAltText("선택한 사진")).toBeVisible();
-  await page.getByRole("button", { name: "삽입", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("사진 삽입 완료");
-});
 test("좁은 작업창과 데스크톱 UI 스크린샷", async ({ page }) => {
   await connect(page);
   await page.setViewportSize({ width: 360, height: 1000 });
@@ -121,11 +87,18 @@ test("좁은 작업창과 데스크톱 UI 스크린샷", async ({ page }) => {
     path: "artifacts/studio-desktop.png",
     fullPage: true,
   });
-  await page.setViewportSize({width:360,height:1000});
-  await page.getByRole('button',{name:'편집 도구',exact:true}).click();
-  await page.getByRole('button',{name:'텍스트·색상',exact:true}).click();
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:'artifacts/phase2-tools-360.png',fullPage:true});
+  await page.setViewportSize({ width: 360, height: 1000 });
+  await page.getByRole("button", { name: "편집 도구", exact: true }).click();
+  await page.getByRole("button", { name: "텍스트·색상", exact: true }).click();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "artifacts/phase2-tools-360.png",
+    fullPage: true,
+  });
 });
 test("편집 도구에서 선택 개체를 바로 정렬하고 크기를 통일한다", async ({
   page,
@@ -244,8 +217,9 @@ test("유사 개체 검색 결과만 선택하고 삭제 취소 시 보존한다
   });
   await page.getByRole("button", { name: "선택 정보 새로고침" }).click();
   await page.getByRole("button", { name: "편집 도구", exact: true }).click();
-  await page.getByRole("button", { name: "유사 검색", exact: true }).click();
-  await page.getByRole("button", { name: "유사 개체 찾기" }).click();
+  await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByLabel("같은 개체 유형", { exact: true }).check();
+  await page.getByRole("button", { name: "개체 찾기" }).click();
   await expect(page.getByRole("status")).toContainText("2개 찾았습니다");
   await page.getByRole("button", { name: "검색 결과 선택" }).click();
   await expect(page.getByRole("status")).toContainText("2개 선택 완료");
@@ -257,16 +231,6 @@ test("유사 개체 검색 결과만 선택하고 삭제 취소 시 보존한다
   expect(
     await page.evaluate(() => (window as any).__officeTest.shapes.length),
   ).toBe(3);
-});
-test("확장 도형 라이브러리의 직선과 둥근 사각형 삽입", async ({ page }) => {
-  await connect(page);
-  await page.getByRole("button", { name: /기본 도형 핵심/ }).click();
-  await page.getByLabel("도형 종류").selectOption("RoundRectangle");
-  await page.getByRole("button", { name: "삽입", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("둥근 사각형 삽입 완료");
-  await page.getByLabel("도형 종류").selectOption("Line");
-  await page.getByRole("button", { name: "삽입", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("직선 삽입 완료");
 });
 test("사진 두 개는 크기와 제목을 유지하며 위치만 교환한다", async ({
   page,
@@ -364,8 +328,105 @@ test("기본 서식은 내용과 위치를 유지하며 복제한다", async ({ 
     }),
   ).toEqual(["유지할 내용", 400, "#ff0000", 36]);
 });
-test('온라인 manifest의 버전이 있는 주소에서도 초기화된다',async({page})=>{
- await page.route('https://appsforoffice.microsoft.com/**',route=>route.fulfill({contentType:'application/javascript',body:mock}));
- await page.goto('/index.html?addin=hosted&v=0.2.1');await expect(page.getByText('PowerPoint 연결됨')).toBeVisible();
- await page.getByRole('button',{name:'삽입',exact:true}).click();await expect(page.getByRole('status')).toContainText('텍스트 상자 삽입 완료');
+test("온라인 manifest의 버전이 있는 주소에서도 초기화된다", async ({
+  page,
+}) => {
+  await page.route("https://appsforoffice.microsoft.com/**", (route) =>
+    route.fulfill({ contentType: "application/javascript", body: mock }),
+  );
+  await page.goto("/index.html?addin=hosted&v=0.2.1");
+  await expect(page.getByText("PowerPoint 연결됨")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "편집 도구", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "빠른 삽입", exact: true }),
+  ).toHaveCount(0);
+});
+test("선택 새로고침 없이 바꾼 개체를 유사 검색 기준으로 사용한다", async ({
+  page,
+}) => {
+  await connect(page);
+  await page.evaluate(() => {
+    const s = (window as any).__officeTest;
+    const a = s.seed("Rectangle", {
+        left: 200,
+        top: 100,
+        width: 100,
+        height: 80,
+      }),
+      b = s.seed("Rectangle", { left: 400, top: 100, width: 100, height: 80 });
+    s.selected = [a.id];
+  });
+  // No selection event and no refresh: the visible parent cache still has zero selections.
+  await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByLabel("같은 개체 유형", { exact: true }).check();
+  await page.getByRole("button", { name: "개체 찾기" }).click();
+  await expect(page.getByRole("status")).toContainText("2개 찾았습니다");
+  await expect(page.getByText("기준 개체: Rectangle")).toBeVisible();
+});
+test("텍스트를 지원하지 않는 네이티브 도형도 유형 검색된다", async ({
+  page,
+}) => {
+  await connect(page);
+  await page.evaluate(() => {
+    const s = (window as any).__officeTest;
+    const a = s.seed("Rectangle", {
+      left: 200,
+      top: 100,
+      width: 100,
+      height: 80,
+    });
+    s.seed("Rectangle", { left: 400, top: 100, width: 100, height: 80 });
+    Object.defineProperty(a, "textFrame", {
+      get() {
+        throw new Error("TextFrame unsupported");
+      },
+    });
+    Object.defineProperty(a, "fill", {
+      get() {
+        throw new Error("Fill unsupported");
+      },
+    });
+    s.selected = [a.id];
+  });
+  await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByLabel("같은 개체 유형", { exact: true }).check();
+  await page.getByRole("button", { name: "개체 찾기" }).click();
+  await expect(page.getByRole("status")).toContainText("2개 찾았습니다");
+});
+test("선택 없이 도형·사진·텍스트를 함께 찾고 사진만 필터링한다", async ({
+  page,
+}) => {
+  await connect(page);
+  await page.evaluate(() => {
+    const s = (window as any).__officeTest;
+    s.seed("Rectangle", { left: 200, top: 100, width: 100, height: 80 });
+    s.seed("Image", { left: 400, top: 100, width: 100, height: 80 });
+    s.selected = [];
+  });
+  await page.getByRole("button", { name: "개체 검색", exact: true }).click();
+  await page.getByRole("button", { name: "개체 찾기", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("3개 찾았습니다");
+  await expect(
+    page.getByText("도형 1개 · 사진 1개 · 텍스트 상자 1개"),
+  ).toBeVisible();
+  await page.getByLabel("개체 종류", { exact: true }).selectOption("Image");
+  await page.getByRole("button", { name: "개체 찾기", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("1개 찾았습니다");
+  await page.getByRole("button", { name: "검색 결과 선택" }).click();
+  await expect(page.getByRole("status")).toContainText("1개 선택 완료");
+  expect(
+    await page.evaluate(() => {
+      const s = (window as any).__officeTest;
+      return s.shapes.find((x: any) => x.id === s.selected[0]).type;
+    }),
+  ).toBe("Image");
+  await page.getByLabel("개체 종류", { exact: true }).selectOption("all");
+  await page.getByLabel("같은/유사한 크기", { exact: true }).check();
+  await page.getByRole("button", { name: "개체 찾기", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("2개 찾았습니다");
+  await expect(
+    page.getByText("도형 1개 · 사진 1개 · 텍스트 상자 0개"),
+  ).toBeVisible();
 });

@@ -11,17 +11,14 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
-  ImagePlus,
   Layers3,
   LoaderCircle,
   MousePointer2,
   PanelRight,
-  Plus,
   RefreshCw,
   ShieldCheck,
   Square,
   Trash2,
-  Type,
   X,
 } from "lucide-react";
 import {
@@ -29,13 +26,10 @@ import {
   friendlyError,
 } from "../../../packages/powerpoint-adapter/src";
 import {
-  SHAPE_LIBRARY,
   targetOf,
   validateBounds,
-  validateImage,
   type Bounds,
   type Selection,
-  type ShapeKind,
   type Target,
 } from "../../../packages/shared/src";
 const service = new PowerPointService();
@@ -48,24 +42,13 @@ type Pending = {
   execute: () => Promise<void>;
   preview: ReactNode;
 };
-const kinds = SHAPE_LIBRARY;
 export function App() {
   const [host, setHost] = useState<
     "loading" | "ready" | "browser" | "unsupported"
   >("loading");
   const [selection, setSelection] = useState<Selection | null>(null);
-  const [tab, setTab] = useState<"insert" | "selection" | "tools" | "guide">(
-    "insert",
-  );
-  const [tool, setTool] = useState<"text" | "shape" | "image">("text");
-  const [text, setText] = useState("안전한 현장, 함께 만드는 내일");
-  const [kind, setKind] = useState<ShapeKind>("Rectangle");
-  const [color, setColor] = useState("#264F9E");
-  const [bounds, setBounds] = useState<Bounds>(initialBounds);
+  const [tab, setTab] = useState<"selection" | "tools" | "guide">("tools");
   const [editBounds, setEditBounds] = useState<Bounds>(initialBounds);
-  const [image, setImage] = useState<{ name: string; data: string } | null>(
-    null,
-  );
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(
@@ -73,7 +56,6 @@ export function App() {
   );
   const mounted = useRef(true);
   const locked = useRef(false);
-  const imageRead = useRef(0);
   const refresh = useCallback(async () => {
     try {
       const value = await service.read();
@@ -166,50 +148,6 @@ export function App() {
       setNotice({ error: true, text: friendlyError(e) });
     }
   };
-  const stageInsert = () =>
-    stage((s) => {
-      const target = targetOf(s);
-      const b = validateBounds({ ...bounds });
-      const title =
-        tool === "text"
-          ? "텍스트 상자 삽입"
-          : tool === "shape"
-            ? `${kinds.find((k) => k.id === kind)?.label} 삽입`
-            : "사진 삽입";
-      if (tool === "text" && (!text.trim() || text.length > 5000))
-        throw new Error("텍스트는 1~5,000자로 입력해 주세요.");
-      if (tool === "image" && !image)
-        throw new Error("사진을 먼저 선택해 주세요.");
-      return {
-        title,
-        target,
-        detail: `현재 선택 슬라이드에 새 개체 1개를 추가합니다. 기존 개체는 유지됩니다.`,
-        execute: () =>
-          tool === "text"
-            ? service.insertText(target, text, b)
-            : tool === "shape"
-              ? service.insertShape(target, kind, color, b)
-              : service.insertImage(target, image!.data, b),
-        preview: (
-          <div className="slide-preview">
-            <span className="preview-label">삽입 내용</span>
-            {tool === "text" ? (
-              <p>{text}</p>
-            ) : tool === "image" ? (
-              <img src={image!.data} alt="삽입할 사진" />
-            ) : (
-              <div
-                className={`shape-preview ${kind}`}
-                style={{ backgroundColor: color }}
-              />
-            )}
-            <small>
-              X {b.left} · Y {b.top} · {b.width} × {b.height} pt
-            </small>
-          </div>
-        ),
-      };
-    });
   const executeOperation = async (operation: Pending) => {
     if (locked.current) return;
     locked.current = true;
@@ -230,31 +168,6 @@ export function App() {
       setBusy(false);
     }
   };
-  async function loadImage(file?: File) {
-    const request = ++imageRead.current;
-    setImage(null);
-    try {
-      if (!file) return;
-      validateImage(file);
-      const data = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result));
-        r.onerror = () => reject(new Error("사진을 읽을 수 없습니다."));
-        r.readAsDataURL(file);
-      });
-      await new Promise<void>((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve();
-        i.onerror = () =>
-          reject(new Error("사진이 손상되었거나 지원하지 않는 형식입니다."));
-        i.src = data;
-      });
-      if (request === imageRead.current) setImage({ name: file.name, data });
-    } catch (e) {
-      if (request === imageRead.current)
-        setNotice({ error: true, text: friendlyError(e) });
-    }
-  }
   return (
     <div className="app-shell">
       <div className="workspace">
@@ -324,7 +237,6 @@ export function App() {
           <nav className="tabs" aria-label="편집 메뉴">
             {(
               [
-                { id: "insert", label: "빠른 삽입", icon: Plus },
                 { id: "selection", label: "선택 개체", icon: MousePointer2 },
                 { id: "tools", label: "편집 도구", icon: Layers3 },
                 { id: "guide", label: "사용 안내", icon: CircleHelp },
@@ -352,128 +264,6 @@ export function App() {
                 <X size={15} />
               </button>
             </div>
-          )}
-          {tab === "insert" && (
-            <section className="editor-card">
-              <div className="section-heading">
-                <div>
-                  <h3>슬라이드에 추가</h3>
-                  <p>추가할 요소를 선택하세요</p>
-                </div>
-                <span className="step">01 — INSERT</span>
-              </div>
-              <div className="tool-grid">
-                {(
-                  [
-                    {
-                      id: "text",
-                      label: "텍스트",
-                      subtitle: "메시지를 선명하게",
-                      icon: Type,
-                    },
-                    {
-                      id: "shape",
-                      label: "기본 도형",
-                      subtitle: "핵심을 시각적으로",
-                      icon: Square,
-                    },
-                    {
-                      id: "image",
-                      label: "사진",
-                      subtitle: "현장을 생생하게",
-                      icon: ImagePlus,
-                    },
-                  ] as const
-                ).map((t) => (
-                  <button
-                    key={t.id}
-                    aria-pressed={tool === t.id}
-                    className={tool === t.id ? "selected" : ""}
-                    onClick={() => setTool(t.id)}
-                  >
-                    <t.icon size={23} />
-                    <strong>{t.label}</strong>
-                    <span>{t.subtitle}</span>
-                    {tool === t.id && (
-                      <i>
-                        <Check size={10} />
-                      </i>
-                    )}
-                  </button>
-                ))}
-              </div>
-              {tool === "text" && (
-                <label className="field">
-                  텍스트 내용
-                  <textarea
-                    maxLength={5000}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder="슬라이드에 넣을 내용을 입력하세요"
-                  />
-                  <span className="field-hint">
-                    PowerPoint에서 직접 수정할 수 있는 텍스트로 삽입됩니다.
-                    <span>{text.length} / 5,000</span>
-                  </span>
-                </label>
-              )}
-              {tool === "shape" && (
-                <div className="shape-fields">
-                  <label className="field">
-                    도형 종류
-                    <select
-                      value={kind}
-                      onChange={(e) => setKind(e.target.value as ShapeKind)}
-                    >
-                      {kinds.map((k) => (
-                        <option key={k.id} value={k.id}>
-                          {k.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    채우기 색상
-                    <div className="color-field">
-                      <input
-                        aria-label="채우기 색상"
-                        type="color"
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                      />
-                      <code>{color.toUpperCase()}</code>
-                    </div>
-                  </label>
-                </div>
-              )}
-              {tool === "image" && (
-                <label className="upload">
-                  <ImagePlus size={26} />
-                  <strong>{image?.name || "사진 파일 선택"}</strong>
-                  <span>PNG, JPEG · 최대 5MB · 외부 전송 없음</span>
-                  <input
-                    aria-label="사진 파일 선택"
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={(e) => void loadImage(e.target.files?.[0])}
-                  />
-                  {image && <img src={image.data} alt="선택한 사진" />}
-                </label>
-              )}
-              <BoundsFields value={bounds} onChange={setBounds} />
-              <button
-                className="primary full"
-                disabled={
-                  !enabled || !selection || (tool === "image" && !image)
-                }
-                onClick={stageInsert}
-              >
-                {busy ? "삽입 중…" : "삽입"} <ArrowRight size={17} />
-              </button>
-              <p className="safe-note">
-                <ShieldCheck size={13} /> 현재 선택한 슬라이드에만 추가됩니다
-              </p>
-            </section>
           )}
           {tab === "selection" && (
             <section className="editor-card">
@@ -641,9 +431,10 @@ export function App() {
               <div className="guide-note">
                 <ShieldCheck size={18} />
                 <p>
-                  삽입과 위치 변경은 바로 적용됩니다. 삭제 전에만 대상을
-                  확인합니다. 기본 실행 취소는 PowerPoint의 Ctrl+Z를 사용하세요.
-                  애드인 자체 선택 복원은 후속 단계입니다.
+                  개체 추가는 PowerPoint 기본 메뉴를 사용하세요. 위치 변경은
+                  바로 적용됩니다. 삭제 전에만 대상을 확인합니다. 기본 실행
+                  취소는 PowerPoint의 Ctrl+Z를 사용하세요. 애드인 자체 선택
+                  복원은 후속 단계입니다.
                 </p>
               </div>
               <h4>다음으로 준비 중</h4>
@@ -661,7 +452,7 @@ export function App() {
             <span>
               <ShieldCheck size={13} /> 원본 파일을 먼저 저장해 주세요
             </span>
-            <span>v0.2.1</span>
+            <span>v0.2.2</span>
           </footer>
         </main>
       </div>

@@ -34,7 +34,7 @@ files['PPT-AI-Studio/manifest.development.xml']=new Uint8Array(readFileSync('man
 files['PPT-AI-Studio/manifest.xml']=new Uint8Array(readFileSync('manifest.production.xml'));
 
 files["PPT-AI-Studio/BUILD-INFO.txt"] = strToU8(
-  `PPT AI Studio 0.2.1\nBuilt: ${new Date().toISOString()}\nSource commit: ${execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim()}\nWindows PowerPoint host validation: NOT RUN in Linux cloud\nOnline use: register manifest.xml; no Node.js or local CA needed. Local development: register manifest.development.xml. Read docs/WINDOWS.md.\n`,
+  `PPT AI Studio 0.2.2\nBuilt: ${new Date().toISOString()}\nSource commit: ${execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim()}\nWindows PowerPoint host validation: NOT RUN in Linux cloud\nOnline use: register manifest.xml; no Node.js or local CA needed. Local development: register manifest.development.xml. Read docs/WINDOWS.md.\n`,
 );
 mkdirSync("artifacts", { recursive: true });
 const data = zipSync(files, { level: 6 });

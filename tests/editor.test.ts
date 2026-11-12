@@ -90,11 +90,108 @@ describe("Phase 2 Office.js 명령 보호", () => {
     expect(s.canvas).toBeNull();
   });
 });
-it('텍스트가 없는 placeholder를 읽거나 덮어쓰지 않는다',async()=>{
- const picture=state.seed('Placeholder',{left:0,top:0,width:200,height:100});picture.textFrame.isNullObject=true;
- const s=await service.scan('slide');const item=s.items.find(x=>x.id===picture.id)!;expect(item.text).toBeUndefined();expect(s.excludedText).toBe(1);
+it("텍스트가 없는 placeholder를 읽거나 덮어쓰지 않는다", async () => {
+  const picture = state.seed("Placeholder", {
+    left: 0,
+    top: 0,
+    width: 200,
+    height: 100,
+  });
+  picture.textFrame.isNullObject = true;
+  const s = await service.scan("slide");
+  const item = s.items.find((x) => x.id === picture.id)!;
+  expect(item.text).toBeUndefined();
+  expect(s.excludedText).toBe(1);
 });
-it('구버전 placeholder는 명시적으로 제외한다',async()=>{
- state.seed('Placeholder',{left:0,top:0,width:200,height:100},'제목');Office.context.requirements.isSetSupported=(_name,version)=>version==='1.5';
- const s=await service.scan('slide');expect(s.excludedText).toBe(1);expect(s.items.find(x=>x.type==='Placeholder')?.text).toBeUndefined();
+it("구버전 placeholder는 명시적으로 제외한다", async () => {
+  state.seed(
+    "Placeholder",
+    { left: 0, top: 0, width: 200, height: 100 },
+    "제목",
+  );
+  Office.context.requirements.isSetSupported = (_name, version) =>
+    version === "1.5";
+  const s = await service.scan("slide");
+  expect(s.excludedText).toBe(1);
+  expect(s.items.find((x) => x.type === "Placeholder")?.text).toBeUndefined();
+});
+it("검색은 글꼴·텍스트·슬라이드 크기를 지원하지 않는 개체에서도 실행된다", async () => {
+  const shape = state.seed("Rectangle", {
+    left: 200,
+    top: 0,
+    width: 100,
+    height: 100,
+  });
+  Object.defineProperty(shape, "textFrame", {
+    get() {
+      throw new Error("TextFrame unsupported");
+    },
+  });
+  Object.defineProperty(shape, "lineFormat", {
+    get() {
+      throw new Error("Line properties unsupported");
+    },
+  });
+  state.selected = [shape.id];
+  const s = await service.scan(
+    "slide",
+    { text: false, line: false, canvas: false, fill: true },
+    true,
+  );
+  expect(s.target.shapeIds).toEqual([shape.id]);
+  expect(s.items.find((x) => x.id === shape.id)?.text).toBeUndefined();
+  expect(s.canvas).toBeNull();
+  await service.apply({
+    title: "검색 대상 색상 변경",
+    scan: s,
+    patches: [
+      { before: s.items.find((x) => x.id === shape.id)!, fill: "#ff0000" },
+    ],
+  });
+  expect(shape.fill.foregroundColor).toBe("#ff0000");
+});
+it("채우기 없는 도형의 foregroundColor를 읽지 않는다", async () => {
+  const shape = state.seed("Rectangle", {
+    left: 200,
+    top: 0,
+    width: 100,
+    height: 100,
+  });
+  shape.fill.type = "NoFill";
+  shape.fill.load = (fields: string) => {
+    if (fields.includes("foregroundColor")) throw new Error("No solid color");
+  };
+  state.selected = [shape.id];
+  const s = await service.scan(
+    "slide",
+    { text: false, line: false, canvas: false, fill: true },
+    true,
+  );
+  expect(s.items.find((x) => x.id === shape.id)?.fill).toBeUndefined();
+});
+it("검색에 기준 개체가 없으면 명확하게 실패한다", async () => {
+  state.selected = [];
+  await expect(
+    service.scan("slide", { text: false, line: false, canvas: false }, true),
+  ).rejects.toThrow("기준 개체");
+});
+it("유형 검색은 채우기 속성도 요청하지 않는다", async () => {
+  const shape = state.seed("Rectangle", {
+    left: 200,
+    top: 0,
+    width: 100,
+    height: 100,
+  });
+  Object.defineProperty(shape, "fill", {
+    get() {
+      throw new Error("Fill unsupported");
+    },
+  });
+  state.selected = [shape.id];
+  const s = await service.scan(
+    "slide",
+    { text: false, line: false, canvas: false, fill: false },
+    true,
+  );
+  expect(s.items.some((x) => x.id === shape.id)).toBe(true);
 });

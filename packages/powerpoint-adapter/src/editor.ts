@@ -23,7 +23,20 @@ export type Snapshot = Bounds & {
   lineWeight?: number;
   font?: FontStyle;
 };
+export type ReadFields = {
+  text: boolean;
+  fill: boolean;
+  line: boolean;
+  canvas: boolean;
+};
+const defaultFields: ReadFields = {
+  text: true,
+  fill: true,
+  line: true,
+  canvas: true,
+};
 export type Scan = {
+  fields?: ReadFields;
   scope: Scope;
   target: Target;
   items: Snapshot[];
@@ -45,6 +58,7 @@ const supports = (version: string) =>
   Office.context.requirements.isSetSupported("PowerPointApi", version);
 const textTypes = ["TextBox", "GeometricShape"];
 const fillTypes = ["TextBox", "GeometricShape", "Callout"];
+export const canSetFill = (type: string) => fillTypes.includes(type);
 function readFont(font: PowerPoint.ShapeFont): FontStyle {
   return {
     ...(font.name ? { name: font.name } : {}),
@@ -58,6 +72,7 @@ async function inspect(
   slides: PowerPoint.Slide[],
   scope: Scope,
   ids: string[],
+  fields: ReadFields = defaultFields,
 ): Promise<{ items: Snapshot[]; excludedText: number }> {
   slides.forEach((s) =>
     s.shapes.load(
@@ -74,17 +89,29 @@ async function inspect(
     throw new Error("한 번에 2,000개까지 처리합니다. 선택 범위를 줄여 주세요.");
   const frames = new Map<PowerPoint.Shape, PowerPoint.TextFrame>();
   for (const { shape } of refs) {
-    if (textTypes.includes(shape.type)) frames.set(shape, shape.textFrame);
-    else if (shape.type === "Placeholder" && supports("1.10")) {
+    if (fields.text && textTypes.includes(shape.type))
+      frames.set(shape, shape.textFrame);
+    else if (fields.text && shape.type === "Placeholder" && supports("1.10")) {
       const frame = shape.getTextFrameOrNullObject();
 
       frames.set(shape, frame);
     }
-    if (fillTypes.includes(shape.type)) shape.fill.load("type,foregroundColor");
-    if (["GeometricShape", "Line", "TextBox"].includes(shape.type))
+    if (fields.fill && fillTypes.includes(shape.type)) shape.fill.load("type");
+    if (
+      fields.line &&
+      ["GeometricShape", "Line", "TextBox"].includes(shape.type)
+    )
       shape.lineFormat.load("color,weight");
   }
   await context.sync();
+  for (const { shape } of refs) {
+    if (
+      fields.fill &&
+      fillTypes.includes(shape.type) &&
+      shape.fill.type === "Solid"
+    )
+      shape.fill.load("foregroundColor");
+  }
   for (const [shape, frame] of frames) {
     if (shape.type === "Placeholder" && frame.isNullObject) {
       frames.delete(shape);
@@ -113,19 +140,24 @@ async function inspect(
             font: readFont(frames.get(s)!.textRange.font),
           }
         : {}),
-      ...(fillTypes.includes(s.type) && s.fill.type === "Solid"
+      ...(fields.fill && fillTypes.includes(s.type) && s.fill.type === "Solid"
         ? { fill: s.fill.foregroundColor }
         : {}),
-      ...(["GeometricShape", "Line", "TextBox"].includes(s.type)
+      ...(fields.line && ["GeometricShape", "Line", "TextBox"].includes(s.type)
         ? { lineColor: s.lineFormat.color, lineWeight: s.lineFormat.weight }
         : {}),
     })),
   };
 }
 export class EditorService {
-  async scan(scope: Scope): Promise<Scan> {
+  async scan(
+    scope: Scope,
+    requested: Partial<ReadFields> = {},
+    requireReference = false,
+  ): Promise<Scan> {
     if (!supports("1.5"))
       throw new Error("PowerPointApi 1.5 이상이 필요합니다.");
+    const fields = { ...defaultFields, ...requested };
     return PowerPoint.run(async (c) => {
       const selected = c.presentation.getSelectedSlides(),
         shapes = c.presentation.getSelectedShapes();
@@ -140,6 +172,8 @@ export class EditorService {
       };
       if (scope === "selected" && !target.shapeIds.length)
         throw new Error("개체를 먼저 선택해 주세요.");
+      if (requireReference && (!target.slideId || target.shapeIds.length !== 1))
+        throw new Error("슬라이드 한 장에서 기준 개체 한 개만 선택해 주세요.");
       let slides = selected.items;
       if (scope === "all") {
         const all = c.presentation.slides;
@@ -148,7 +182,7 @@ export class EditorService {
         slides = all.items;
       }
       let canvas: Canvas | null = null;
-      if (supports("1.10")) {
+      if (fields.canvas && supports("1.10")) {
         const page = c.presentation.pageSetup;
         page.load("slideWidth,slideHeight");
         await c.sync();
@@ -156,9 +190,10 @@ export class EditorService {
       }
       return {
         scope,
+        fields,
         target,
         canvas,
-        ...(await inspect(c, slides, scope, target.shapeIds)),
+        ...(await inspect(c, slides, scope, target.shapeIds, fields)),
       };
     });
   }
@@ -168,6 +203,12 @@ export class EditorService {
     // Validate the complete patch set before sending any mutation to Office.
     for (const p of plan.patches) {
       if (p.bounds) validateBounds(p.bounds);
+      if ((p.font || p.text !== undefined) && p.before.text === undefined)
+        throw new Error(
+          "이 대상에서 텍스트를 읽지 않았으므로 텍스트 변경을 적용할 수 없습니다.",
+        );
+      if (p.fill !== undefined && !fillTypes.includes(p.before.type))
+        throw new Error("이 개체는 채우기 색상을 지원하지 않습니다.");
       if (
         p.font?.size !== undefined &&
         (!Number.isFinite(p.font.size) || p.font.size < 1 || p.font.size > 400)
@@ -199,7 +240,13 @@ export class EditorService {
         );
       const slideIds = [...new Set(plan.patches.map((p) => p.before.slideId))];
       const slides = slideIds.map((id) => c.presentation.slides.getItem(id));
-      const current = await inspect(c, slides, "slide", []);
+      const current = await inspect(
+        c,
+        slides,
+        "slide",
+        [],
+        plan.scan.fields || defaultFields,
+      );
       const key = (s: Snapshot) => s.slideId + "\0" + s.id;
       const actual = new Map(current.items.map((x) => [key(x), x]));
       for (const p of plan.patches) {
@@ -222,7 +269,11 @@ export class EditorService {
           shape.width = p.bounds.width;
           shape.height = p.bounds.height;
         }
-        if (p.fill !== undefined) shape.fill.setSolidColor(p.fill);
+        if (p.fill !== undefined) {
+          if (!fillTypes.includes(p.before.type))
+            throw new Error("이 개체는 채우기 색상을 지원하지 않습니다.");
+          shape.fill.setSolidColor(p.fill);
+        }
         if (p.lineColor !== undefined) shape.lineFormat.color = p.lineColor;
         if (p.lineWeight !== undefined) shape.lineFormat.weight = p.lineWeight;
         if (p.text !== undefined) shape.textFrame.textRange.text = p.text;

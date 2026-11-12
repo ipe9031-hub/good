@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, LoaderCircle, RefreshCw, Trash2, X } from "lucide-react";
 import {
   EditorService,
+  canSetFill,
   similar,
   type Scan,
   type Snapshot,
@@ -25,6 +26,20 @@ import {
 } from "../../../packages/layout-engine/src";
 import { type Selection } from "../../../packages/shared/src";
 const editor = new EditorService();
+const objectLabels: Record<string, string> = {
+  Image: "사진",
+  GeometricShape: "도형",
+  TextBox: "텍스트 상자",
+  Line: "선",
+  Group: "그룹",
+  Placeholder: "자리표시자",
+  Graphic: "그래픽",
+  Freeform: "자유 도형",
+  Callout: "말풍선",
+  Table: "표",
+  Chart: "차트",
+  SmartArt: "스마트아트",
+};
 const alignActions: { id: LayoutAction; label: string }[] = [
   { id: "left", label: "왼쪽" },
   { id: "center", label: "가로 중앙" },
@@ -69,9 +84,12 @@ export function EditorTools({
   const [deleteId, setDeleteId] = useState("");
   const [reflow, setReflow] = useState<"grid" | "pull" | "keep">("grid");
   const [scope, setScope] = useState<Scope>("selected");
+  const [searchScope, setSearchScope] = useState<"slide" | "all">("slide");
   const [scan, setScan] = useState<Scan | null>(null);
+  const [objectType, setObjectType] = useState("all");
+  const [searchReference, setSearchReference] = useState<string | null>(null);
   const [matches, setMatches] = useState<Snapshot[]>([]);
-  const [matchType, setMatchType] = useState(true),
+  const [matchType, setMatchType] = useState(false),
     [matchColor, setMatchColor] = useState(false),
     [matchSize, setMatchSize] = useState(false);
   const [tolerance, setTolerance] = useState(0),
@@ -93,6 +111,8 @@ export function EditorTools({
     setMatches([]);
   }, [
     scope,
+    searchScope,
+    objectType,
     matchType,
     matchColor,
     matchSize,
@@ -125,8 +145,11 @@ export function EditorTools({
     setMatches([]);
     return `${plan.title} 완료 · ${plan.patches.length}개`;
   }
-  async function selected() {
-    const s = await editor.scan("selected");
+  async function selected(withStyle = false) {
+    const s = await editor.scan(
+      "selected",
+      withStyle ? {} : { text: false, line: false, fill: false },
+    );
     if (!s.items.length) throw new Error("개체를 선택해 주세요.");
     if (s.canvas) setCanvas(s.canvas);
     return s;
@@ -209,24 +232,38 @@ export function EditorTools({
     return "삭제할 사진과 남은 사진의 배치를 확인해 주세요.";
   }
   async function search() {
-    const s = await editor.scan(scope === "selected" ? "slide" : scope);
-    const referenceShape = s.items.find(
-      (x) =>
-        x.id === (reference || selection?.shapes[0]?.id) &&
-        x.slideId === s.target.slideId,
+    setScan(null);
+    setMatches([]);
+    setSearchReference(null);
+    const hasCriteria = matchType || matchColor || matchSize;
+    const s = await editor.scan(
+      searchScope,
+      { text: false, line: false, canvas: false, fill: matchColor },
+      hasCriteria,
     );
-    if (!referenceShape)
-      throw new Error(
-        "기준 개체 하나를 선택하고 현재 슬라이드 범위로 검색해 주세요.",
-      );
-    const found = similar(s.items, referenceShape, {
-      type: matchType,
-      color: matchColor,
-      size: matchSize,
-      tolerance,
-      sizeTolerance,
-    });
+    const referenceShape = s.items.find(
+      (x) => x.slideId === s.target.slideId && x.id === s.target.shapeIds[0],
+    );
+    if (hasCriteria && !referenceShape)
+      throw new Error("유사 조건을 사용하려면 기준 개체 하나를 선택해 주세요.");
+    const candidates = hasCriteria
+      ? similar(s.items, referenceShape!, {
+          type: matchType,
+          color: matchColor,
+          size: matchSize,
+          tolerance,
+          sizeTolerance,
+        })
+      : s.items;
+    const found = candidates.filter(
+      (x) =>
+        objectType === "all" ||
+        (objectType === "shape"
+          ? ["GeometricShape", "Callout", "Freeform"].includes(x.type)
+          : x.type === objectType),
+    );
     setScan(s);
+    setSearchReference(hasCriteria ? referenceShape!.name : null);
     setMatches(found);
     return `${found.length}개 찾았습니다. 검색된 개체만 변경됩니다.`;
   }
@@ -291,7 +328,7 @@ export function EditorTools({
     return execute(plan);
   }
   async function copyStyle() {
-    const s = await selected();
+    const s = await selected(true);
     if (s.items.length !== 1)
       throw new Error("복사할 기준 개체 하나만 선택해 주세요.");
     setCopied(s.items[0]);
@@ -299,7 +336,7 @@ export function EditorTools({
   }
   async function pasteStyle() {
     if (!copied) throw new Error("먼저 서식을 복사해 주세요.");
-    const s = await selected();
+    const s = await selected(true);
     const patches = s.items
       .map((x) => ({
         before: x,
@@ -328,7 +365,7 @@ export function EditorTools({
           [
             { id: "layout", label: "정렬·크기" },
             { id: "photos", label: "사진 배치" },
-            { id: "similar", label: "유사 검색" },
+            { id: "similar", label: "개체 검색" },
             { id: "text", label: "텍스트·색상" },
           ] as const
         ).map((t) => (
@@ -615,14 +652,16 @@ export function EditorTools({
         <label className="field">
           작업 범위
           <select
-            value={scope}
+            value={mode === "similar" ? searchScope : scope}
             onChange={(e) => {
-              setScope(e.target.value as Scope);
+              if (mode === "similar")
+                setSearchScope(e.target.value as "slide" | "all");
+              else setScope(e.target.value as Scope);
               setScan(null);
               setMatches([]);
             }}
           >
-            <option value="selected">선택 개체</option>
+            {mode !== "similar" && <option value="selected">선택 개체</option>}
             <option value="slide">현재 슬라이드</option>
             <option value="all">전체 프레젠테이션</option>
           </select>
@@ -630,12 +669,29 @@ export function EditorTools({
       )}
       {mode === "similar" && (
         <>
-          <h4>선택한 첫 개체와 유사한 개체 찾기</h4>
+          <h4>도형·사진·텍스트 찾기</h4>
+          <label className="field">
+            개체 종류
+            <select
+              aria-label="개체 종류"
+              value={objectType}
+              onChange={(e) => setObjectType(e.target.value)}
+            >
+              <option value="all">모든 개체</option>
+              <option value="shape">도형</option>
+              <option value="Image">사진</option>
+              <option value="TextBox">텍스트 상자</option>
+              <option value="Line">선</option>
+              <option value="Group">그룹</option>
+            </select>
+          </label>
           <p className="field-hint">
-            ‘선택 개체’ 범위도 검색은 현재 슬라이드 전체에서 수행합니다. 개체
-            유형은 사진·텍스트·도형 같은 큰 분류입니다. 사각형과 화살표의 세부
-            형태는 구분하지 않습니다.
+            개체를 선택하지 않아도 전체 목록을 찾습니다. 아래 유사 조건을 사용할
+            때만 기준 개체 한 개를 선택하세요. 같은 유형은 사진·도형 같은 큰
+            분류 기준이며 세부 도형 모양은 구분하지 않습니다. 사진 속 픽셀이나
+            그룹 내부 개체를 개별 도형으로 분리하지는 않습니다.
           </p>
+          <h4>유사 조건 (선택 사항)</h4>
           <label className="check-field">
             <input
               type="checkbox"
@@ -687,15 +743,31 @@ export function EditorTools({
             onClick={() => void run(search)}
           >
             <RefreshCw size={14} />
-            유사 개체 찾기
+            개체 찾기
           </button>
           {scan && (
             <>
+              <p className="field-hint">
+                {searchReference
+                  ? `기준 개체: ${searchReference}`
+                  : "기준 개체 없이 전체 조회"}
+              </p>
+              <p className="field-hint">
+                도형{" "}
+                {
+                  matches.filter((x) =>
+                    ["GeometricShape", "Callout", "Freeform"].includes(x.type),
+                  ).length
+                }
+                개 · 사진 {matches.filter((x) => x.type === "Image").length}개 ·
+                텍스트 상자 {matches.filter((x) => x.type === "TextBox").length}
+                개
+              </p>
               <ResultList items={matches} />
               <div className="form-row">
                 <button
                   className="secondary"
-                  disabled={disabled || scope === "all" || !matches.length}
+                  disabled={disabled || scan.scope === "all" || !matches.length}
                   onClick={() =>
                     void run(async () => {
                       await editor.select(scan, matches);
@@ -733,20 +805,21 @@ export function EditorTools({
               </label>
               <button
                 className="secondary full spaced"
-                disabled={disabled || !matches.some((x) => x.fill)}
+                disabled={disabled || !matches.some((x) => canSetFill(x.type))}
                 onClick={() => {
                   const plan = {
                     title: "검색 개체 색상 변경",
                     scan,
                     patches: matches
-                      .filter((x) => x.fill)
+                      .filter((x) => canSetFill(x.type))
                       .map((x) => ({ before: x, fill })),
                   };
-                  if (scope === "all") setConfirm(plan);
+                  if (scan.scope === "all") setConfirm(plan);
                   else void run(() => execute(plan));
                 }}
               >
-                검색 결과 색상 변경
+                채우기 색상 변경 (
+                {matches.filter((x) => canSetFill(x.type)).length}개)
               </button>
             </>
           )}
@@ -969,7 +1042,7 @@ function ResultList({ items }: { items: Snapshot[] }) {
           <li key={x.slideId + "-" + x.id}>
             <span>{x.name}</span>
             <small>
-              {x.type} · 슬라이드 {x.slideId}
+              {objectLabels[x.type] || x.type} · 슬라이드 ID {x.slideId}
             </small>
           </li>
         ))}
