@@ -26,3 +26,12 @@
 - [Common 이미지 API](https://learn.microsoft.com/en-us/javascript/api/office/office.document?view=common-js#office-office-document-setselecteddataasync-member(1))
 
 XML 방식은 Windows 테스트 카탈로그와 호환되는 명시적 선택입니다. unified manifest 지원 범위를 가정하지 않습니다. 상용 배포는 별도 검토가 필요합니다.
+
+## Phase 2 추가 API
+
+- Shape 기본 좌표/크기, ShapeFill/ShapeLineFormat/ShapeFont: PowerPointApi 1.4
+- Slide.setSelectedShapes: 1.5. 현재 슬라이드에서만 결과 선택을 제공합니다.
+- Presentation.pageSetup.slideWidth/slideHeight, Shape.getTextFrameOrNullObject: 1.10. 지원 여부 검사 후 사용하며 구버전에서는 크기를 직접 입력하고 placeholder 텍스트는 제외합니다.
+- Shape.rotation은 1.10이므로 기본 1.5 호환 기능으로 잘못 제공하지 않습니다.
+- GeometricShape의 세부 프리셋 종류 읽기 기능이 Shape 1.5에 없으므로 사각형/화살표를 같은 유형 검색에서 구분했다고 주장하지 않습니다.
+- 새 편집 도구 상세 제한과 구현 상태는 PHASE2.md를 참조합니다.

@@ -1,4 +1,5 @@
 import {
+  SHAPE_LIBRARY,
   assertSameTarget,
   isImageData,
   targetOf,
@@ -95,13 +96,19 @@ export class PowerPointService {
   ) {
     validateBounds(bounds);
     if (
-      !["Rectangle", "Ellipse", "Triangle", "RightArrow"].includes(kind) ||
+      !SHAPE_LIBRARY.some((x) => x.id === kind) ||
       !/^#[0-9a-f]{6}$/i.test(color)
     )
       throw new Error("지원하는 도형과 색상을 선택해 주세요.");
     await this.mutate(target, false, (slide) => {
-      const shape = slide.shapes.addGeometricShape(kind, bounds);
-      shape.fill.setSolidColor(color);
+      if (kind === "Line") {
+        const line = slide.shapes.addLine("Straight", bounds);
+        line.lineFormat.color = color;
+        line.lineFormat.weight = 2;
+      } else {
+        const shape = slide.shapes.addGeometricShape(kind, bounds);
+        shape.fill.setSolidColor(color);
+      }
     });
   }
   async update(target: Target, bounds: Bounds) {

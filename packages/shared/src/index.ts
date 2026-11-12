@@ -12,7 +12,24 @@ export type Selection = {
   shapes: SelectedShape[];
 };
 export type Target = { slideId: string; shapeIds: string[] };
-export type ShapeKind = "Rectangle" | "Ellipse" | "Triangle" | "RightArrow";
+export const SHAPE_LIBRARY = [
+  { id: "Rectangle", label: "사각형" },
+  { id: "RoundRectangle", label: "둥근 사각형" },
+  { id: "Ellipse", label: "원" },
+  { id: "Triangle", label: "삼각형" },
+  { id: "Diamond", label: "마름모" },
+  { id: "RightArrow", label: "오른쪽 화살표" },
+  { id: "LeftRightArrow", label: "양방향 화살표" },
+  { id: "DownArrow", label: "아래 화살표" },
+  { id: "BentArrow", label: "꺾은 화살표" },
+  { id: "CurvedRightArrow", label: "곡선 화살표" },
+  { id: "WedgeRRectCallout", label: "말풍선" },
+  { id: "Frame", label: "강조 프레임" },
+  { id: "Plus", label: "십자 표시" },
+  { id: "Hexagon", label: "육각형" },
+  { id: "Line", label: "직선" },
+] as const;
+export type ShapeKind = (typeof SHAPE_LIBRARY)[number]["id"];
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export function validateBounds(input: Bounds): Bounds {
   const b: Bounds = {
@@ -54,7 +71,7 @@ export function assertSameTarget(
         JSON.stringify([...actual.shapeIds].sort()))
   )
     throw new Error(
-      "선택 대상이 바뀌었습니다. 다시 미리보기한 후 적용해 주세요.",
+      "선택 대상이 바뀌었습니다. 선택 정보를 새로고침한 후 다시 실행해 주세요.",
     );
 }
 export function validateImage(file: Pick<File, "size" | "type">) {

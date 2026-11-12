@@ -1,10 +1,10 @@
 # PPT AI Studio
 
-Windows Microsoft PowerPoint 내부에서 실행하는 한국어 Office Add-in입니다. 일반 웹 PPT 생성기가 아닙니다. **Phase 1 코드 구현 및 Linux 자동 검증 완료, Windows PowerPoint 실기 검증 대기** 상태입니다.
+Windows Microsoft PowerPoint 내부에서 실행하는 한국어 Office Add-in입니다. 일반 웹 PPT 생성기가 아닙니다. **Phase 1은 사용자 Windows PowerPoint에서 실행 확인됐고, 현재 v0.2.0에 Phase 2 기본 편집 도구를 추가했습니다. 새 Phase 2 기능은 Linux 자동 검증을 마쳤으며 Windows 실기 확인은 아직입니다.**
 
 ## Windows 다운로드
 
-[Phase 1 Windows ZIP 다운로드](https://github.com/ipe9031-hub/good/raw/refs/heads/main/downloads/PPT-AI-Studio-Phase1-Windows.zip) · [SHA-256](downloads/PPT-AI-Studio-Phase1-Windows.zip.sha256)
+[Phase 2 전체 소스 Windows ZIP](https://github.com/ipe9031-hub/good/raw/refs/heads/main/downloads/PPT-AI-Studio-Phase2-Windows.zip) · [SHA-256](downloads/PPT-AI-Studio-Phase2-Windows.zip.sha256)
 
 ## 인증서 설치 없는 배포형 (권장)
 
@@ -30,12 +30,25 @@ ZIP은 **소스·빌드 결과·설치 도구가 포함된 개발용 배포본**
 
 - PowerPoint 리본 실행 버튼, 오른쪽 Task Pane, 반응형 한국어 UI
 - 프레젠테이션 슬라이드 수, 선택 슬라이드 ID, 선택 개체 ID/이름/유형/좌표/크기 읽기
-- 텍스트 상자, 사각형·원·삼각형·오른쪽 화살표 삽입
+- 텍스트 상자, 사각형·둥근 사각형·원·화살표·직선 등 15종 삽입
 - 로컬 PNG/JPEG 사진 삽입 (5MB 이하, 파일 검증, 외부 업로드 없음)
 - 선택 개체 하나의 위치·크기 변경, 선택 개체 여러 개 삭제
-- 변경 미리보기·사용자 승인·선택 대상 재확인·오류와 진행 상태 표시
+- 삽입·일반 변경은 한 번 클릭으로 적용, 삭제·전체 프레젠테이션 변경만 확인
+- 정렬 6방향, 가로·세로 간격 배분, 너비·높이 통일, 기준 개체 크기·위치 복제
+- pt/mm/cm 단위 미세 이동, 슬라이드 경계 제한
+- 사진 그리드(열 수·간격·비율 설정), 위치 맞교환, 삭제 후 그리드/당기기/위치 유지
+- 개체 유형·단색 채우기·크기의 복합 유사 검색, 결과 선택·색상 변경·삭제
+- 선택/현재 슬라이드/전체 범위의 글꼴·크기·색상 변경, 문구 바꾸기, 색상 교체
+- 단색 채우기·테두리·균일 텍스트 서식 복제
+- 큰 소개 배너·슬로건·장식 로고 제거, 편집 도구 우선 UI
 
-Phase 2~5 기능은 [전체 요구사항](docs/PRODUCT-REQUIREMENTS.ko.txt)과 [개발 현황](docs/STATUS.md)에 보존했습니다. 미구현 AI 버튼이나 가짜 응답은 없습니다.
+전체 요구사항과 남은 Phase 2 세부 기능 및 Phase 3~5 기능은 [전체 요구사항](docs/PRODUCT-REQUIREMENTS.ko.txt)과 [개발 현황](docs/STATUS.md)에 보존했습니다. 미구현 AI 버튼이나 가짜 응답은 없습니다.
+
+## Phase 2 사용
+
+작업창의 **편집 도구**에서 정렬·크기 / 사진 배치 / 유사 검색 / 텍스트·색상을 선택합니다. 선택한 개체에 적용하는 일반 편집은 즉시 실행합니다. 삭제와 전체 프레젠테이션 변경은 대상 목록·개수·범위를 확인합니다.
+
+[Phase 2 사용 범위와 제한](docs/PHASE2.md)을 참고하세요. 사진 내용만 교환, 원본 비율 재구성, 세부 도형 종류별 검색, 스마트 크롭, 그림자 복제 등은 완료로 표시하지 않습니다.
 
 ## 개발 명령
 
@@ -64,7 +77,7 @@ apps/api              Phase 3 API 설계 경계 (아직 서버 기능 없음)
 packages/powerpoint-adapter  PowerPoint API 호출, 선택 대상 보호
 packages/shared       명령 대상·좌표·파일 검증
 packages/ai-engine     Phase 3 예정
-packages/layout-engine Phase 2 예정
+packages/layout-engine 정렬·그리드·크기·색상·단위 계산
 supabase/             후속 Auth/RLS/Storage 도입 지침
 scripts/              Windows 실행, manifest 변환/검증, ZIP
 ```

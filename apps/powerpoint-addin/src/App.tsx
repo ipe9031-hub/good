@@ -1,3 +1,4 @@
+import { EditorTools } from "./EditorTools";
 import {
   useCallback,
   useEffect,
@@ -12,14 +13,12 @@ import {
   CircleHelp,
   ImagePlus,
   Layers3,
-  LayoutDashboard,
   LoaderCircle,
   MousePointer2,
   PanelRight,
   Plus,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   Square,
   Trash2,
   Type,
@@ -30,6 +29,7 @@ import {
   friendlyError,
 } from "../../../packages/powerpoint-adapter/src";
 import {
+  SHAPE_LIBRARY,
   targetOf,
   validateBounds,
   validateImage,
@@ -48,18 +48,15 @@ type Pending = {
   execute: () => Promise<void>;
   preview: ReactNode;
 };
-const kinds: { id: ShapeKind; label: string }[] = [
-  { id: "Rectangle", label: "사각형" },
-  { id: "Ellipse", label: "원" },
-  { id: "Triangle", label: "삼각형" },
-  { id: "RightArrow", label: "화살표" },
-];
+const kinds = SHAPE_LIBRARY;
 export function App() {
   const [host, setHost] = useState<
     "loading" | "ready" | "browser" | "unsupported"
   >("loading");
   const [selection, setSelection] = useState<Selection | null>(null);
-  const [tab, setTab] = useState<"insert" | "selection" | "guide">("insert");
+  const [tab, setTab] = useState<"insert" | "selection" | "tools" | "guide">(
+    "insert",
+  );
   const [tool, setTool] = useState<"text" | "shape" | "image">("text");
   const [text, setText] = useState("안전한 현장, 함께 만드는 내일");
   const [kind, setKind] = useState<ShapeKind>("Rectangle");
@@ -160,8 +157,11 @@ export function App() {
         throw new Error(
           "선택 정보가 없습니다. PowerPoint에서 새로고침해 주세요.",
         );
-      setPending(make(selection));
+      if (locked.current) return;
+      const operation = make(selection);
       setNotice(null);
+      if (operation.destructive) setPending(operation);
+      else void executeOperation(operation);
     } catch (e) {
       setNotice({ error: true, text: friendlyError(e) });
     }
@@ -210,16 +210,16 @@ export function App() {
         ),
       };
     });
-  const apply = async () => {
-    if (!pending || locked.current) return;
+  const executeOperation = async (operation: Pending) => {
+    if (locked.current) return;
     locked.current = true;
     setBusy(true);
     try {
-      await pending.execute();
+      await operation.execute();
       setPending(null);
       setNotice({
         error: false,
-        text: `${pending.title} 완료. PowerPoint에서 결과를 확인해 주세요.`,
+        text: `${operation.title} 완료.`,
       });
       await refresh();
     } catch (e) {
@@ -257,38 +257,11 @@ export function App() {
   }
   return (
     <div className="app-shell">
-      <aside className="desktop-rail">
-        <div className="rail-logo">
-          <Layers3 size={25} />
-        </div>
-        <span>STUDIO</span>
-        <button
-          className="rail-item active"
-          aria-label="편집 스튜디오"
-          onClick={() => setTab("insert")}
-        >
-          <LayoutDashboard />
-        </button>
-        <button
-          className="rail-item"
-          aria-label="사용 안내"
-          onClick={() => setTab("guide")}
-        >
-          <CircleHelp />
-        </button>
-        <div className="rail-bottom">01</div>
-      </aside>
       <div className="workspace">
         <header>
           <div className="brand">
-            <div className="brand-icon">
-              <Layers3 size={21} />
-            </div>
             <div>
-              <h1>
-                PPT AI Studio<span className="version">PHASE 01</span>
-              </h1>
-              <p>아이디어를 슬라이드 위로</p>
+              <h1>PPT AI Studio</h1>
             </div>
           </div>
           <span className={`connection ${host === "ready" ? "online" : ""}`}>
@@ -301,33 +274,6 @@ export function App() {
           </span>
         </header>
         <main>
-          <section className="hero">
-            <div className="eyebrow">
-              <span /> YOUR PRESENTATION WORKSPACE
-            </div>
-            <h2>
-              좋은 장표의 시작,
-              <br />
-              <strong>더 간편한 편집.</strong>
-            </h2>
-            <p>
-              텍스트부터 사진까지.
-              <br className="narrow-break" /> 필요한 요소를 정확하게 배치하세요.
-            </p>
-            <div className="hero-art" aria-hidden="true">
-              <div className="art-slide">
-                <div className="art-line" />
-                <div className="art-line short" />
-                <div className="art-grid">
-                  <div />
-                  <div />
-                </div>
-              </div>
-              <div className="art-spark">
-                <Sparkles size={19} />
-              </div>
-            </div>
-          </section>
           {host !== "ready" && (
             <div className="host-message">
               <PanelRight size={19} />
@@ -380,6 +326,7 @@ export function App() {
               [
                 { id: "insert", label: "빠른 삽입", icon: Plus },
                 { id: "selection", label: "선택 개체", icon: MousePointer2 },
+                { id: "tools", label: "편집 도구", icon: Layers3 },
                 { id: "guide", label: "사용 안내", icon: CircleHelp },
               ] as const
             ).map((t) => (
@@ -521,7 +468,7 @@ export function App() {
                 }
                 onClick={stageInsert}
               >
-                삽입 미리보기 <ArrowRight size={17} />
+                {busy ? "삽입 중…" : "삽입"} <ArrowRight size={17} />
               </button>
               <p className="safe-note">
                 <ShieldCheck size={13} /> 현재 선택한 슬라이드에만 추가됩니다
@@ -606,7 +553,7 @@ export function App() {
                           })
                         }
                       >
-                        변경 내용 미리보기 <ChevronRight size={16} />
+                        변경 적용 <ChevronRight size={16} />
                       </button>
                     </>
                   ) : (
@@ -646,6 +593,17 @@ export function App() {
               )}
             </section>
           )}
+          {tab === "tools" && (
+            <EditorTools
+              available={enabled}
+              selection={selection}
+              onRefresh={refresh}
+              onBusy={(value) => {
+                locked.current = value;
+                setBusy(value);
+              }}
+            />
+          )}
           {tab === "guide" && (
             <section className="editor-card guide">
               <div className="section-heading">
@@ -659,15 +617,17 @@ export function App() {
                 <li>
                   <strong>실행 방식 선택</strong>
                   <p>
-                    배포형은 https://good-red.vercel.app에 연결하므로 Node.js나 개발 인증서가 필요 없습니다. 로컬 개발형은 Windows-Setup.cmd로 설치 후 Windows-Start.cmd를 실행합니다.
+                    배포형은 https://good-red.vercel.app에 연결하므로 Node.js나
+                    개발 인증서가 필요 없습니다. 로컬 개발형은
+                    Windows-Setup.cmd로 설치 후 Windows-Start.cmd를 실행합니다.
                   </p>
                 </li>
                 <li>
                   <strong>애드인 등록</strong>
                   <p>
-                    배포형 설치 ZIP의 manifest.xml을 공유 폴더에 넣고 PowerPoint의 보안 센터 →
-                    신뢰할 수 있는 추가 기능 카탈로그에 등록합니다. 자세한
-                    절차는 docs/WINDOWS.md를 확인하세요.
+                    배포형 설치 ZIP의 manifest.xml을 공유 폴더에 넣고
+                    PowerPoint의 보안 센터 → 신뢰할 수 있는 추가 기능 카탈로그에
+                    등록합니다. 자세한 절차는 docs/WINDOWS.md를 확인하세요.
                   </p>
                 </li>
                 <li>
@@ -681,15 +641,15 @@ export function App() {
               <div className="guide-note">
                 <ShieldCheck size={18} />
                 <p>
-                  적용 전 대상과 변경 내용을 확인합니다. 기본 실행 취소는
-                  PowerPoint의 Ctrl+Z를 사용하세요. 애드인 자체 선택 복원은 후속
-                  단계입니다.
+                  삽입과 위치 변경은 바로 적용됩니다. 삭제 전에만 대상을
+                  확인합니다. 기본 실행 취소는 PowerPoint의 Ctrl+Z를 사용하세요.
+                  애드인 자체 선택 복원은 후속 단계입니다.
                 </p>
               </div>
               <h4>다음으로 준비 중</h4>
               <p>
-                AI 생성 · 번역 · 사진 자동 배치는 후속 단계입니다. 현재 버전은
-                기본 개체 편집을 제공합니다.
+                AI 생성과 번역은 후속 단계입니다. 정렬·사진 배치·일괄 편집은
+                편집 도구에서 사용할 수 있습니다.
               </p>
               <p className="field-hint">
                 Windows PowerPoint 실기 검증은 배포 문서의 체크리스트를 따라
@@ -701,7 +661,7 @@ export function App() {
             <span>
               <ShieldCheck size={13} /> 원본 파일을 먼저 저장해 주세요
             </span>
-            <span>v0.1.0</span>
+            <span>v0.2.0</span>
           </footer>
         </main>
       </div>
@@ -767,7 +727,7 @@ export function App() {
               <button
                 className={pending.destructive ? "danger-solid" : "primary"}
                 disabled={busy}
-                onClick={() => void apply()}
+                onClick={() => pending && void executeOperation(pending)}
               >
                 {busy ? (
                   <>

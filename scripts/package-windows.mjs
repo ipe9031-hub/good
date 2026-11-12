@@ -10,7 +10,12 @@ if (!tracked.includes("package-lock.json"))
   throw new Error("Stage source and lockfile before packaging.");
 const files = {};
 for (const file of tracked) {
-  if (/^(?:\.git(?:\/|$)|node_modules\/|artifacts\/|downloads\/|\.env$)/.test(file)) continue;
+  if (
+    /^(?:\.git(?:\/|$)|node_modules\/|artifacts\/|downloads\/|\.env$)/.test(
+      file,
+    )
+  )
+    continue;
   files[`PPT-AI-Studio/${file}`] = new Uint8Array(readFileSync(file));
 }
 function addDir(path) {
@@ -25,11 +30,11 @@ function addDir(path) {
 }
 addDir("dist");
 files["PPT-AI-Studio/BUILD-INFO.txt"] = strToU8(
-  `PPT AI Studio 0.1.0\nBuilt: ${new Date().toISOString()}\nSource commit: ${execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim()}\nWindows PowerPoint host validation: NOT RUN in Linux cloud\nNode.js and npm installation required. Read docs/WINDOWS.md.\n`,
+  `PPT AI Studio 0.2.0\nBuilt: ${new Date().toISOString()}\nSource commit: ${execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim()}\nWindows PowerPoint host validation: NOT RUN in Linux cloud\nNode.js and npm installation required. Read docs/WINDOWS.md.\n`,
 );
 mkdirSync("artifacts", { recursive: true });
 const data = zipSync(files, { level: 6 });
-const name = "PPT-AI-Studio-Phase1-Windows.zip";
+const name = "PPT-AI-Studio-Phase2-Windows.zip";
 writeFileSync(`artifacts/${name}`, data);
 const sha = createHash("sha256").update(data).digest("hex");
 writeFileSync(`artifacts/${name}.sha256`, `${sha}  ${name}\n`);
