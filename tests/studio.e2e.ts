@@ -364,3 +364,8 @@ test("기본 서식은 내용과 위치를 유지하며 복제한다", async ({ 
     }),
   ).toEqual(["유지할 내용", 400, "#ff0000", 36]);
 });
+test('온라인 manifest의 버전이 있는 주소에서도 초기화된다',async({page})=>{
+ await page.route('https://appsforoffice.microsoft.com/**',route=>route.fulfill({contentType:'application/javascript',body:mock}));
+ await page.goto('/index.html?addin=hosted&v=0.2.1');await expect(page.getByText('PowerPoint 연결됨')).toBeVisible();
+ await page.getByRole('button',{name:'삽입',exact:true}).click();await expect(page.getByRole('status')).toContainText('텍스트 상자 삽입 완료');
+});

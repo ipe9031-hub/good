@@ -1,6 +1,6 @@
 # PPT AI Studio
 
-Windows Microsoft PowerPoint 내부에서 실행하는 한국어 Office Add-in입니다. 일반 웹 PPT 생성기가 아닙니다. **Phase 1은 사용자 Windows PowerPoint에서 실행 확인됐고, 현재 v0.2.0에 Phase 2 기본 편집 도구를 추가했습니다. 새 Phase 2 기능은 Linux 자동 검증을 마쳤으며 Windows 실기 확인은 아직입니다.**
+Windows Microsoft PowerPoint 내부에서 실행하는 한국어 Office Add-in입니다. 일반 웹 PPT 생성기가 아닙니다. **Phase 1은 사용자 Windows PowerPoint에서 실행 확인됐고, 현재 v0.2.1에 Phase 2 기본 편집 도구를 추가했습니다. 새 Phase 2 기능은 Linux 자동 검증을 마쳤으며 Windows 실기 확인은 아직입니다.**
 
 ## Windows 다운로드
 
@@ -12,7 +12,7 @@ Windows Microsoft PowerPoint 내부에서 실행하는 한국어 Office Add-in�
 
 [배포형 설치 ZIP](https://github.com/ipe9031-hub/good/raw/refs/heads/main/downloads/PPT-AI-Studio-Hosted-Windows.zip)을 풀고, 안의 `manifest.xml`을 PowerPoint 테스트 카탈로그에 등록합니다. **Node.js, npm, Windows-Setup/Start, 로컬 개발 인증서 설치가 필요 없습니다.** 인터넷과 Office 추가 기능 사용 권한은 필요합니다. [배포형 설치 안내](docs/INSTALL-HOSTED.md)를 참고하세요.
 
-저장소 루트의 `manifest.production.xml`은 배포형, `manifest.xml`은 localhost 개발형입니다. 파일을 혼용하지 마세요. 배포형 ZIP 안에서는 등록하기 쉽도록 production manifest를 `manifest.xml`이라는 이름으로 제공합니다.
+GitHub 저장소 루트의 `manifest.production.xml`은 배포형, `manifest.xml`은 localhost 개발형입니다. **다운로드 ZIP에서는 기본 `manifest.xml`이 온라인용이며 `manifest.development.xml`을 로컬 개발용으로 따로 제공합니다.** 파일을 혼용하지 마세요. 배포형 ZIP 안에서는 등록하기 쉽도록 production manifest를 `manifest.xml`이라는 이름으로 제공합니다.
 
 ## 로컬 개발형 빠른 시작 (Windows)
 
@@ -43,6 +43,8 @@ ZIP은 **소스·빌드 결과·설치 도구가 포함된 개발용 배포본**
 - 큰 소개 배너·슬로건·장식 로고 제거, 편집 도구 우선 UI
 
 전체 요구사항과 남은 Phase 2 세부 기능 및 Phase 3~5 기능은 [전체 요구사항](docs/PRODUCT-REQUIREMENTS.ko.txt)과 [개발 현황](docs/STATUS.md)에 보존했습니다. 미구현 AI 버튼이나 가짜 응답은 없습니다.
+
+v0.2.1부터 공유 폴더 목록의 온라인 등록 이름은 **PPT AI Studio 온라인**입니다. 기존 등록에서 로드 오류가 나면 [등록 복구 절차](docs/INSTALL-HOSTED.md#이전-등록-오류-복구-v021)를 따라 새 온라인 등록을 추가하세요.
 
 ## Phase 2 사용
 

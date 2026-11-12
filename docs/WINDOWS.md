@@ -14,6 +14,8 @@ https://good-red.vercel.app/을 사용하는 [배포형 설치 안내](INSTALL-H
 - 직접 실행하려면 저장소 루트에서 `npm ci`, `npm run certs`, `npm run build`, `npm run dev`.
 - `https://localhost:3000`과 `/assets/icon-32.png`가 HTTPS 경고 없이 열려야 합니다. 서버 창을 닫으면 애드인도 작동하지 않습니다.
 
+소스 ZIP에서 로컬 개발 서버를 사용할 때는 `manifest.development.xml`을 테스트 카탈로그에 복사하세요. ZIP의 기본 `manifest.xml`은 온라인 서버용입니다. GitHub 저장소 자체의 `manifest.xml`은 계속 개발용 템플릿입니다.
+
 ## 공식 공유 폴더 카탈로그로 사이드로드
 
 XML manifest를 사용하는 Microsoft 공식 Windows 테스트 방식입니다. 레지스트리를 자동으로 수정하지 않습니다.

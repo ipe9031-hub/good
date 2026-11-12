@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 const input = process.argv[2];
 if (!input)
   throw new Error(
@@ -18,9 +18,14 @@ if (
     "HTTPS production origin without a path or credentials is required.",
   );
 mkdirSync("artifacts", { recursive: true });
-const xml = readFileSync("manifest.xml", "utf8").replaceAll(
-  "https://localhost:3000",
-  url.origin.replaceAll("&", "&amp;"),
-);
+const version=JSON.parse(readFileSync('package.json','utf8')).version;
+const template=existsSync('manifest.development.xml')?'manifest.development.xml':'manifest.xml';
+const xml = readFileSync(template, 'utf8')
+  .replace(/<Id>[^<]+<\/Id>/, '<Id>7a4a06c7-71c9-444f-b16a-589377521b98</Id>')
+  .replace('<DisplayName DefaultValue="PPT AI Studio"/>','<DisplayName DefaultValue="PPT AI Studio 온라인"/>')
+  .replace('<bt:String id="Tab.Label" DefaultValue="PPT AI Studio"/>','<bt:String id="Tab.Label" DefaultValue="PPT AI Studio 온라인"/>')
+  .replaceAll('https://localhost:3000/index.html', 'https://localhost:3000/index.html?addin=hosted&amp;v='+version)
+  .replaceAll('https://localhost:3000/commands.html', 'https://localhost:3000/commands.html?addin=hosted&amp;v='+version)
+  .replaceAll('https://localhost:3000', url.origin.replaceAll('&','&amp;'));
 writeFileSync("artifacts/manifest.production.xml", xml);
 console.log("Created artifacts/manifest.production.xml for", url.origin);

@@ -661,7 +661,7 @@ export function App() {
             <span>
               <ShieldCheck size={13} /> 원본 파일을 먼저 저장해 주세요
             </span>
-            <span>v0.2.0</span>
+            <span>v0.2.1</span>
           </footer>
         </main>
       </div>

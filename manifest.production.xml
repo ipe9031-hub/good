@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xsi:type="TaskPaneApp">
-  <Id>bf84bc4b-73ca-4689-a27a-df20120b4d10</Id>
-  <Version>0.2.0.0</Version>
+  <Id>7a4a06c7-71c9-444f-b16a-589377521b98</Id>
+  <Version>0.2.1.0</Version>
   <ProviderName>PPT AI Studio</ProviderName>
   <DefaultLocale>ko-KR</DefaultLocale>
-  <DisplayName DefaultValue="PPT AI Studio"/>
+  <DisplayName DefaultValue="PPT AI Studio 온라인"/>
   <Description DefaultValue="PowerPoint 안에서 텍스트, 도형, 사진을 정밀하게 편집합니다."/>
   <IconUrl DefaultValue="https://good-red.vercel.app/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://good-red.vercel.app/assets/icon-80.png"/>
@@ -12,7 +12,7 @@
   <AppDomains><AppDomain>https://good-red.vercel.app</AppDomain></AppDomains>
   <Hosts><Host Name="Presentation"/></Hosts>
   <Requirements><Sets DefaultMinVersion="1.5"><Set Name="PowerPointApi" MinVersion="1.5"/></Sets></Requirements>
-  <DefaultSettings><SourceLocation DefaultValue="https://good-red.vercel.app/index.html"/></DefaultSettings>
+  <DefaultSettings><SourceLocation DefaultValue="https://good-red.vercel.app/index.html?addin=hosted&amp;v=0.2.1"/></DefaultSettings>
   <Permissions>ReadWriteDocument</Permissions>
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Hosts><Host xsi:type="Presentation"><DesktopFormFactor>
@@ -34,8 +34,8 @@
     </DesktopFormFactor></Host></Hosts>
     <Resources>
       <bt:Images><bt:Image id="Icon.16" DefaultValue="https://good-red.vercel.app/assets/icon-16.png"/><bt:Image id="Icon.32" DefaultValue="https://good-red.vercel.app/assets/icon-32.png"/><bt:Image id="Icon.80" DefaultValue="https://good-red.vercel.app/assets/icon-80.png"/></bt:Images>
-      <bt:Urls><bt:Url id="Commands.Url" DefaultValue="https://good-red.vercel.app/commands.html"/><bt:Url id="Taskpane.Url" DefaultValue="https://good-red.vercel.app/index.html"/></bt:Urls>
-      <bt:ShortStrings><bt:String id="Tab.Label" DefaultValue="PPT AI Studio"/><bt:String id="Group.Label" DefaultValue="편집 스튜디오"/><bt:String id="Button.Label" DefaultValue="스튜디오 열기"/></bt:ShortStrings>
+      <bt:Urls><bt:Url id="Commands.Url" DefaultValue="https://good-red.vercel.app/commands.html?addin=hosted&amp;v=0.2.1"/><bt:Url id="Taskpane.Url" DefaultValue="https://good-red.vercel.app/index.html?addin=hosted&amp;v=0.2.1"/></bt:Urls>
+      <bt:ShortStrings><bt:String id="Tab.Label" DefaultValue="PPT AI Studio 온라인"/><bt:String id="Group.Label" DefaultValue="편집 스튜디오"/><bt:String id="Button.Label" DefaultValue="스튜디오 열기"/></bt:ShortStrings>
       <bt:LongStrings><bt:String id="Button.Description" DefaultValue="PPT AI Studio 작업창에서 텍스트, 도형, 사진을 추가하고 편집합니다."/></bt:LongStrings>
     </Resources>
   </VersionOverrides>

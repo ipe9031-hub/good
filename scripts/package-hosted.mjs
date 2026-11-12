@@ -13,3 +13,9 @@ const path = 'downloads/PPT-AI-Studio-Hosted-Windows.zip';
 writeFileSync(path, data);
 writeFileSync(path+'.sha256', createHash('sha256').update(data).digest('hex')+'  PPT-AI-Studio-Hosted-Windows.zip\n');
 console.log('Created',path,data.length,'bytes');
+
+const version=JSON.parse(readFileSync('package.json','utf8')).version;
+const versionedName=`PPT-AI-Studio-Online-${version}.zip`;
+writeFileSync('downloads/'+versionedName,data);
+writeFileSync('downloads/'+versionedName+'.sha256',createHash('sha256').update(data).digest('hex')+'  '+versionedName+'\n');
+console.log('Created versioned online package:', versionedName);

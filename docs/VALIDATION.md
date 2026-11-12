@@ -1,3 +1,9 @@
+# v0.2.1 등록 분리 및 로드 오류 대응
+
+사용자는 Edge에서 good-red.vercel.app 페이지가 정상이라고 보고했습니다. PowerPoint의 기존 등록 URL·캐시 및 실제 원인은 원격으로 확인하지 못했습니다. 새 온라인 등록에 별도 고정 ID와 표시명 ‘PPT AI Studio 온라인’, 버전이 포함된 HTML URL을 적용하고 HTML 캐시 방지 헤더를 추가했습니다. 소스 ZIP의 기본 manifest도 온라인용으로 바꾸며 원래 개발형은 manifest.development.xml로 보존합니다. 새 Windows 등록의 성공은 아직 검증되지 않았습니다.
+
+클린 npm ci, 타입 검사·빌드, 단위/계약 테스트 41개, Chromium 통합 테스트 15개가 통과했습니다. 개발/배포 ID·이름·URL 분리와 ZIP 템플릿 재사용 및 새 URL의 브라우저 초기화도 검사했습니다.
+
 # 현재 검증 — v0.2.0 / Phase 2 기본 편집 도구
 
 2026-11-12 (KST), Linux, Node.js 24.22.1, Chromium.
