@@ -6,7 +6,15 @@ Windows Microsoft PowerPoint 내부에서 실행하는 한국어 Office Add-in�
 
 [Phase 1 Windows ZIP 다운로드](https://github.com/ipe9031-hub/good/raw/refs/heads/main/downloads/PPT-AI-Studio-Phase1-Windows.zip) · [SHA-256](downloads/PPT-AI-Studio-Phase1-Windows.zip.sha256)
 
-## 빠른 시작 (Windows)
+## 인증서 설치 없는 배포형 (권장)
+
+서버 주소: https://good-red.vercel.app/
+
+[배포형 설치 ZIP](https://github.com/ipe9031-hub/good/raw/refs/heads/main/downloads/PPT-AI-Studio-Hosted-Windows.zip)을 풀고, 안의 `manifest.xml`을 PowerPoint 테스트 카탈로그에 등록합니다. **Node.js, npm, Windows-Setup/Start, 로컬 개발 인증서 설치가 필요 없습니다.** 인터넷과 Office 추가 기능 사용 권한은 필요합니다. [배포형 설치 안내](docs/INSTALL-HOSTED.md)를 참고하세요.
+
+저장소 루트의 `manifest.production.xml`은 배포형, `manifest.xml`은 localhost 개발형입니다. 파일을 혼용하지 마세요. 배포형 ZIP 안에서는 등록하기 쉽도록 production manifest를 `manifest.xml`이라는 이름으로 제공합니다.
+
+## 로컬 개발형 빠른 시작 (Windows)
 
 1. Node.js **22 LTS 또는 24 LTS**, Microsoft 365 PowerPoint, WebView2를 준비합니다. PowerPointApi 1.5 이상 지원이 필요합니다. 영구 라이선스 구버전은 지원을 보장하지 않습니다.
 2. Windows ZIP을 일반 폴더에 완전히 압축 해제합니다. ZIP 안에서 직접 실행하지 마세요.

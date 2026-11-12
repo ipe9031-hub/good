@@ -44,3 +44,11 @@ npm run test:browser
 ## Windows에서 남은 작업
 
 `WINDOWS.md`의 모든 실기 항목을 실행해 결과를 기록해야 Phase 1 호스트 검증이 완료됩니다. Office 버전/빌드/업데이트 채널도 함께 기록하세요. 자동 테스트 결과를 실제 Office에서 확인한 결과로 해석하지 마세요.
+
+## good-red.vercel.app 배포형 추가
+
+- `manifest.production.xml`과 배포 public manifest를 생성했으며 localhost 참조가 없음을 확인했습니다.
+- manifest의 페이지·아이콘 URL이 로컬 빌드의 실제 파일과 일치함을 검사했습니다.
+- 타입 검사·빌드와 브라우저 통합 테스트 6개가 통과했습니다.
+- 배포형 설치 ZIP은 manifest와 설치 안내만 포함합니다. Node.js 또는 로컬 개발 인증서 설치가 필요 없습니다.
+- 클라우드 프록시가 good-red.vercel.app 연결을 HTTP 403으로 차단하여 실제 Vercel 배포 응답은 확인하지 못했습니다. 이는 배포 서버에서 관측한 403이 아닙니다. 사용자 브라우저에서 페이지와 PowerPoint 로드를 확인해야 합니다.

@@ -657,17 +657,15 @@ export function App() {
               </div>
               <ol>
                 <li>
-                  <strong>개발 서버 실행</strong>
+                  <strong>실행 방식 선택</strong>
                   <p>
-                    ZIP을 풀고 Node.js 22 LTS를 설치합니다. Windows-Setup.cmd로
-                    패키지와 HTTPS 인증서를 설치한 뒤 Windows-Start.cmd를
-                    실행합니다.
+                    배포형은 https://good-red.vercel.app에 연결하므로 Node.js나 개발 인증서가 필요 없습니다. 로컬 개발형은 Windows-Setup.cmd로 설치 후 Windows-Start.cmd를 실행합니다.
                   </p>
                 </li>
                 <li>
                   <strong>애드인 등록</strong>
                   <p>
-                    manifest.xml을 공유 폴더에 넣고 PowerPoint의 보안 센터 →
+                    배포형 설치 ZIP의 manifest.xml을 공유 폴더에 넣고 PowerPoint의 보안 센터 →
                     신뢰할 수 있는 추가 기능 카탈로그에 등록합니다. 자세한
                     절차는 docs/WINDOWS.md를 확인하세요.
                   </p>

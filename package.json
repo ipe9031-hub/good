@@ -16,7 +16,8 @@
     "validate:manifest": "node scripts/validate-manifest.mjs --online",
     "package:windows": "node scripts/package-windows.mjs",
     "validate:manifest:local": "node scripts/validate-manifest.mjs",
-    "manifest:production": "node scripts/manifest-production.mjs"
+    "manifest:production": "node scripts/manifest-production.mjs",
+    "package:hosted": "node scripts/package-hosted.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

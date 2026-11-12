@@ -1,5 +1,11 @@
 # Windows PowerPoint 설치 및 실제 검증
 
+## 배포형 사용 (개발 인증서 설치 불필요)
+
+https://good-red.vercel.app/을 사용하는 [배포형 설치 안내](INSTALL-HOSTED.md)를 먼저 확인하세요. 배포형 설치 ZIP의 `manifest.xml`을 아래 공유 폴더 카탈로그 절차로 등록하면 됩니다. 이 경우 Node.js와 로컬 서버는 필요 없습니다.
+
+아래 ‘준비’는 localhost에서 소스를 개발할 때에만 필요합니다.
+
 ## 준비
 
 - Windows 10/11, 최신 Microsoft 365 PowerPoint, WebView2, Node.js 22/24 LTS
