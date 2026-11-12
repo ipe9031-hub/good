@@ -1,5 +1,7 @@
 # PPT AI Studio
 
+현재 개발 방향은 **Windows 설치형의 개체 근처 도구막대 가능성 검증**입니다. [네이티브 검증본 안내](native/README.md) · [Windows 실행 ZIP](https://github.com/ipe9031-hub/good/raw/refs/heads/main/downloads/PPT-AI-Studio-Native-Probe-Windows-0.1.0.zip). Linux 크로스 빌드·핵심 검사 13개 통과, 실제 Windows/PowerPoint 동작은 아직 확인 전입니다. 아래 웹앱은 기존 구현 기록으로 보존합니다.
+
 Windows Microsoft PowerPoint 내부에서 실행하는 한국어 Office Add-in입니다. 일반 웹 PPT 생성기가 아닙니다. **Phase 1은 사용자 Windows PowerPoint에서 실행 확인됐고, 현재 v0.2.4에 Phase 2 기본 편집 도구를 추가했습니다. 새 Phase 2 기능은 Linux 자동 검증을 마쳤으며 Windows 실기 확인은 아직입니다.**
 
 ## Windows 다운로드

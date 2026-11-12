@@ -7,3 +7,8 @@ test-results/
 .env.*
 !.env.example
 *.log
+# Native Windows feasibility builds
+**/bin/
+**/obj/
+*.snk
+native/out/

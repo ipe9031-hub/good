@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "PPTAIStudio.Probe.Core": {
+        "type": "Project"
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><TargetFramework>net48</TargetFramework><AssemblyName>PPTAIStudio.Probe.Addin</AssemblyName><Version>0.1.0</Version><AssemblyVersion>1.0.0.0</AssemblyVersion><GenerateAssemblyInfo>true</GenerateAssemblyInfo><SignAssembly>true</SignAssembly><AssemblyOriginatorKeyFile>$(ProbeSigningKey)</AssemblyOriginatorKeyFile></PropertyGroup>
+ <ItemGroup><ProjectReference Include="../Probe.Core/Probe.Core.csproj"/><PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all"/><Reference Include="System.Windows.Forms"/><Reference Include="System.Drawing"/><Reference Include="Microsoft.CSharp"/></ItemGroup>
+ <Target Name="RequireSigningKey" BeforeTargets="CoreCompile"><Error Condition="!Exists('$(ProbeSigningKey)')" Text="Provide ProbeSigningKey (development strong-name key); see native/scripts/build.sh."/></Target>
+</Project>
