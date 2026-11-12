@@ -47,3 +47,20 @@ XML manifest를 사용하는 Microsoft 공식 Windows 테스트 방식입니다.
 ## 제거
 
 추가 기능을 제거하고 보안 센터에서 해당 테스트 카탈로그 항목만 삭제합니다. 개발 인증서가 더 이상 필요하지 않으면 다른 Office 개발 프로젝트 사용 여부를 확인한 뒤 `npx office-addin-dev-certs uninstall`을 실행합니다. Office 전체 캐시를 일괄 삭제하는 자동 스크립트는 제공하지 않습니다.
+
+## 인증서 등록 거부: E_ACCESSDENIED / 0x80070005
+
+이 오류는 Vite 코드 오류가 아니라 Windows 신뢰 저장소에 개발 CA를 등록하지 못한 상태입니다. 기본 설치 대상은 `CurrentUser\Root`이며 관리자 권한이 항상 필요한 것은 아닙니다.
+
+1. 같은 Windows 계정에서 `Windows-Trust-Certificate.cmd`를 실행합니다. 이 도구는 기존 `%USERPROFILE%\.office-addin-dev-certs\ca.crt`의 공개 인증서 정보를 표시하고, 승인 후 Windows 기본 `certutil -user -addstore Root`로 현재 사용자에게 등록합니다. 인증서를 재생성하지 않습니다.
+2. 표시된 인증서가 자신이 방금 생성한 Office 개발 인증서인지 확인한 뒤에만 승인합니다. 출처 불명의 인증서를 신뢰하지 마세요.
+3. 성공하면 `Windows-Start.cmd`를 다시 실행하고 `Local: https://localhost:3000/`을 확인합니다.
+4. 같은 오류가 지속되면 사용자가 등록을 취소했는지, Windows/보안 프로그램/조직 정책이 사용자 루트 인증서 등록을 차단하는지 확인해야 합니다. 회사 PC에서는 관리자에게 이 개발 인증서 등록을 요청하세요. 정책을 우회하거나 TLS 검증을 끄지 않습니다.
+
+기존 ZIP에서도 일반 명령 프롬프트에서 아래 명령으로 같은 등록을 시도할 수 있습니다. 인증서 파일이 존재하며 본인이 만든 파일인지 먼저 확인하세요.
+
+```bat
+certutil -user -addstore Root "%USERPROFILE%\.office-addin-dev-certs\ca.crt"
+```
+
+새 버전은 `npm run dev`에서 인증서를 자동 생성/등록하지 않고 검증만 수행합니다. 신규 설치 또는 만료 갱신은 `npm run certs`로 명시적으로 실행합니다. Windows에서 이 복구 도구의 실기 검증은 아직 수행하지 못했습니다.
